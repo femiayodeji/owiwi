@@ -78,7 +78,7 @@ Limits: about 15 items per keyword and 60 articles in total per digest, shared f
 - Optional **streak-saver nudge** (default on, 21:30). It is not scheduled for today if the day is already complete, and it is cancelled as soon as the reader completes the day.
 - Tapping a notification opens the feed, which shows the active slot.
 - Notifications are best-effort reminders. The app never generates a digest in the background.
-- Android uses a dedicated "Daily reminders" channel. The small icon should be a white silhouette of Owiwi's head; see [design.md](design.md#missing-assets).
+- Android uses a dedicated "Daily reminders" channel (`owiwi_reminders`) that plays the Owiwi chime. The small icon is a white silhouette of Owiwi's head; see [design.md](design.md#brand-assets).
 
 ## Mascot
 

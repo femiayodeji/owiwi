@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { PressScale } from '../../src/components/PressScale';
 import { Button, ui } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { deleteProvider, listProviders, setActiveProvider } from '../../src/db/queries';
+import { haptic } from '../../src/lib/haptics';
 import { deleteApiKey } from '../../src/lib/secureStore';
 import { colors, radius, space } from '../../src/lib/theme';
 import type { ProviderConfig } from '../../src/llm/types';
@@ -36,9 +38,12 @@ export default function ProvidersScreen() {
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
       {providers.map((p) => (
         <View key={p.id} style={[styles.item, p.isActive && styles.active]}>
-          <Pressable
+          <PressScale
             style={{ flex: 1 }}
+            scaleTo={0.98}
+            dimTo={0.7}
             onPress={async () => {
+              haptic.select();
               await setActiveProvider(await getDb(), p.id);
               await reload();
             }}
@@ -49,14 +54,14 @@ export default function ProvidersScreen() {
             </Text>
             <Text style={ui.muted}>{p.model}</Text>
             <Text style={[ui.muted, { fontSize: 12 }]}>Key: ••••••••</Text>
-          </Pressable>
+          </PressScale>
           <View style={styles.actions}>
-            <Pressable onPress={() => router.push({ pathname: '/settings/provider', params: { id: p.id } })} hitSlop={8}>
+            <PressScale onPress={() => router.push({ pathname: '/settings/provider', params: { id: p.id } })} hitSlop={8} scaleTo={0.9}>
               <Text style={styles.link}>Edit</Text>
-            </Pressable>
-            <Pressable onPress={() => remove(p)} hitSlop={8}>
+            </PressScale>
+            <PressScale onPress={() => remove(p)} hitSlop={8} scaleTo={0.9}>
               <Text style={[styles.link, { color: colors.danger }]}>Delete</Text>
-            </Pressable>
+            </PressScale>
           </View>
         </View>
       ))}

@@ -1,16 +1,23 @@
 import { useState } from 'react';
-import { ScrollView, Text } from 'react-native';
-import { NumberStepper, Section, TimeStepper, ToggleRow, ui } from '../../src/components/ui';
+import { ScrollView, Text, View } from 'react-native';
+import { Button, NumberStepper, Section, TimeStepper, ToggleRow, ui } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { saveSettings, type Settings } from '../../src/db/settings';
 import { timeToMinutes } from '../../src/lib/dates';
-import { requestPermission, syncReminders } from '../../src/notifications';
+import { requestPermission, sendTestNotification, syncReminders, type ReminderKind } from '../../src/notifications';
+import { space } from '../../src/lib/theme';
 import { useFeed } from '../../src/store/feed';
 
 export default function ScheduleScreen() {
   const settings = useFeed((s) => s.settings);
   const refresh = useFeed((s) => s.refresh);
   const [error, setError] = useState<string | null>(null);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+
+  const test = async (kind: ReminderKind) => {
+    const ok = await sendTestNotification(kind);
+    setTestStatus(ok ? 'Arriving in 3 seconds. Lock the phone or leave the app to see it in the shade.' : 'Notifications are off for Owiwi. Allow them in system settings.');
+  };
 
   const update = async (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
@@ -53,6 +60,14 @@ export default function ScheduleScreen() {
         {settings.nudge_enabled === '1' ? (
           <TimeStepper label="Nudge at" value={settings.nudge_time} onChange={(v) => void update({ nudge_time: v })} />
         ) : null}
+      </Section>
+      <Section title="Test">
+        <View style={{ padding: space.md, gap: space.sm }}>
+          <Button title="Send test notification (morning)" variant="secondary" onPress={() => void test('morning')} />
+          <Button title="Send test notification (evening)" variant="secondary" onPress={() => void test('evening')} />
+          <Button title="Send test notification (nudge)" variant="secondary" onPress={() => void test('nudge')} />
+          {testStatus ? <Text style={ui.muted}>{testStatus}</Text> : null}
+        </View>
       </Section>
       <Text style={ui.muted}>
         Reminders are local and best-effort. Owiwi builds your digest when you open the app, not in the background.

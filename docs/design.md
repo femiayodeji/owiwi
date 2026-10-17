@@ -73,35 +73,37 @@ Rules: use the brand artwork only. Do not redraw the owl, substitute emojis, or 
 - **Empty / failed / no digest:** owl, short explanation, and actions (Try again, Edit keywords, Open settings, Generate).
 - All article and model text is rendered as plain `Text`.
 
-## Missing assets
+## Brand assets
 
-The following art has **not been delivered**. The app runs without it, but none of it should ship as is.
+All art is cut from the brand sheet (`docs/design/owiwi-brand-sheet.png.png`) by `scripts/extract-brand-art.py`. Nothing is redrawn. The script flood-fills each panel's pastel background from the edges, un-mixes anti-aliased edge pixels from that background so there's no halo, trims, and exports the files.
 
-| Asset | Path | Spec | Current fallback |
-|---|---|---|---|
-| Mascot states | `assets/owiwi/idle.png`, `happy.png`, `thinking.png`, `celebrate.png`, `sad.png`, `sleepy.png` | Transparent PNG, with `@2x` and `@3x` variants, cut from the brand design | `<Owiwi />` shows a dashed placeholder on the state's pastel panel labelled "Owiwi / <state> / PLACEHOLDER art missing", and logs one dev warning |
-| Android notification icon | `assets/owiwi/notification-icon.png` | 96x96, white-on-transparent silhouette of the Owiwi **head only**, no color or gradients (Android renders it as a mask) | `app.config.ts` omits the `icon` option of the `expo-notifications` plugin, so Android falls back to a default shape. The accent `color` is already set to `#5B5BD6`. |
-| App icon and splash | `assets/icon.png`, `assets/android-icon-*.png`, `assets/splash-icon.png`, `assets/favicon.png` | Owiwi app icon from the brand sheet (owl reading on navy) | These are still the Expo template images. `splash-icon.png` is not referenced in `app.config.ts`. |
+| Asset | Path | How it's made |
+|---|---|---|
+| Mascot states | `assets/owiwi/{idle,happy,thinking,celebrate,sad,sleepy}.png` plus `@2x`/`@3x` | Cut from the six state panels. 160 px base. |
+| Android notification icon | `assets/owiwi/notification-icon.png` | Head of the idle owl as a 96x96 white silhouette. Eye whites are transparent so the face reads. |
+| App icon | `assets/icon.png` | The sheet's app icon owl (reading) on navy `#222B4D`, 1024 px. |
+| Adaptive icon | `assets/android-icon-foreground.png`, `-background.png`, `-monochrome.png` | Owl inside the 66% safe zone, solid navy background, and a white silhouette for themed icons. |
+| Splash | `assets/splash-icon.png` | Owl on transparent, shown on cream `#F7F5F0` through the `expo-splash-screen` plugin. |
+| Notification sound | `assets/sounds/owiwi_chime.wav` | Two-note chime (G5, then D6) synthesized by `scripts/make-chime.py`. Original audio. |
+
+Known limits:
+
+- **Resolution:** the sheet is 1312x1199, so each owl is about 250 to 330 px in the source. `@3x` (480 px) is upscaled and slightly soft. Swap in the designer's originals when they arrive, keeping the same file names. Nothing else needs to change.
+- **Floor shadow:** a faint trace of the floor shadow can remain under some states.
+
+To regenerate:
+
+```sh
+python3 -m venv /tmp/owiwi-art && /tmp/owiwi-art/bin/pip install pillow numpy
+/tmp/owiwi-art/bin/python -I scripts/extract-brand-art.py docs/design/owiwi-brand-sheet.png.png /tmp/owiwi-art/out /tmp/owiwi-art/preview
+```
+
+Copy the results from `out/` into `assets/` and `assets/owiwi/`. Check the previews in `preview/` first.
 
 iOS has no separate notification icon; it uses the app icon.
 
-### Registering the mascot art
+Native assets (icons, splash, notification icon and sound) only take effect after a new native build (`npx expo prebuild --clean`, then a dev-client or release build). On Android, a channel's sound is fixed when the channel is created, so changing the sound also needs a new channel id (`CHANNEL_ID` in `src/notifications/schedule.ts`).
 
-1. Add the PNGs to `assets/owiwi/` (`idle.png`, `idle@2x.png`, `idle@3x.png`, and so on). Metro picks the density variant automatically.
-2. Register each one in `OWIWI_ART` in `src/components/owiwiAssets.ts`:
+To test notifications: Settings → Schedule & reminders → Test. It sends a morning, evening or nudge reminder 3 seconds later, using the real copy, icon, sound and channel.
 
-   ```ts
-   export const OWIWI_ART: Partial<Record<OwiwiEmotion, ImageSourcePropType>> = {
-     idle: require('../../assets/owiwi/idle.png'),
-     happy: require('../../assets/owiwi/happy.png'),
-     // thinking, celebrate, sad, sleepy
-   };
-   ```
-
-3. States without an entry keep showing the placeholder, so they can be added one at a time.
-
-### Adding the notification icon
-
-Save the file as `assets/owiwi/notification-icon.png`. `app.config.ts` checks for it with `fs.existsSync` and passes it to the `expo-notifications` plugin automatically. Rebuild the native app (`npx expo prebuild --clean` or a new dev client build), since config plugin changes do not apply to an existing build.
-
-`assets/owiwi/README.md` lists the same expected files.
+`assets/owiwi/README.md` lists the files.

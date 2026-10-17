@@ -27,7 +27,8 @@ src/
   store/              zustand feed store
   lib/                dates, errors, http, ids, pool, secure storage, theme
 __tests__/            jest unit tests for pure logic
-assets/               app icons (template), assets/owiwi/ for mascot art
+assets/               app icon, splash, sounds/, owiwi/ (mascot states, notification icon)
+scripts/              extract-brand-art.py (art from the brand sheet), make-chime.py (notification sound)
 docs/                 these docs and the brand sheet
 ```
 

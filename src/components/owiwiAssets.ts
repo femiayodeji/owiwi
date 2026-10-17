@@ -13,10 +13,15 @@ export const OWIWI_COPY: Record<OwiwiEmotion, string> = {
 };
 
 /**
- * State artwork from the brand design. MISSING: the designer has not delivered
- * the individual transparent PNGs yet (only docs/design/owiwi-brand-sheet).
- * When they land in assets/owiwi/ (with @2x/@3x), register them here, e.g.
- *   idle: require('../../assets/owiwi/idle.png'),
- * Until then <Owiwi /> renders a clearly marked placeholder.
+ * State artwork, cut from docs/design/owiwi-brand-sheet.png.png by
+ * scripts/extract-brand-art.py (the sheet is the only source so far; replace
+ * with the designer's originals when delivered, same file names).
  */
-export const OWIWI_ART: Partial<Record<OwiwiEmotion, ImageSourcePropType>> = {};
+export const OWIWI_ART: Partial<Record<OwiwiEmotion, ImageSourcePropType>> = {
+  idle: require('../../assets/owiwi/idle.png'),
+  happy: require('../../assets/owiwi/happy.png'),
+  thinking: require('../../assets/owiwi/thinking.png'),
+  celebrate: require('../../assets/owiwi/celebrate.png'),
+  sad: require('../../assets/owiwi/sad.png'),
+  sleepy: require('../../assets/owiwi/sleepy.png'),
+};

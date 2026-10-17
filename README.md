@@ -50,10 +50,8 @@ Implemented: everything in the v1 build order up to and including notifications,
 
 Known gaps:
 
-- **Mascot art is missing.** The six state PNGs (`assets/owiwi/idle.png` etc.) have not been delivered; `<Owiwi />` shows a clearly marked placeholder. See [docs/design.md](docs/design.md#missing-assets).
-- **Android notification icon is missing** (`assets/owiwi/notification-icon.png`, white-on-transparent head silhouette). Until it exists the notification uses a default shape.
-- **App icon and splash** are still the Expo template images, not the Owiwi brand art.
+- **Art is cut from the brand sheet**, not the designer's originals. The mascot states, app icon, splash and notification icon are extracted by `scripts/extract-brand-art.py`. They look right but `@3x` is upscaled. Replace them with the originals when delivered. See [docs/design.md](docs/design.md#brand-assets).
 - **Rive animation is not implemented.** The owl uses Reanimated bounce and crossfade.
 - **No lint configuration.** `npm run lint` exists but ESLint is not set up.
 - **Bing News RSS** must be re-verified before release, and the suggested model IDs in `src/llm/defaultModels.ts` re-checked against provider docs.
-- **Not yet tested on a physical device in this session.** Only unit tests and type checks have been run; the UI, notifications, SecureStore and SQLite paths still need on-device testing on Android and iOS.
+- **Device testing so far:** the Android release build installs and launches on a Galaxy S22. The full flows (generation, notifications, streaks) are still being tested on the device, and iOS hasn't been tested.

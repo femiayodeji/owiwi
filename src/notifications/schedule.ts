@@ -4,9 +4,15 @@ import { getDb } from '../db/client';
 import { isDayCompleted } from '../db/queries';
 import { loadSettings } from '../db/settings';
 import { localDate } from '../lib/dates';
+import { pickCopy, type ReminderKind } from './copy';
 import { planReminders, REMINDER_PREFIX, reminderId } from './plan';
 
-export const CHANNEL_ID = 'reminders';
+// Android channel sound is fixed when the channel is created, so a sound change
+// needs a new channel id. 'reminders' was the silent-default v1 channel.
+export const CHANNEL_ID = 'owiwi_reminders';
+const LEGACY_CHANNEL_IDS = ['reminders'];
+/** Bundled via the expo-notifications plugin `sounds` option (app.config.ts). */
+export const NOTIFICATION_SOUND = 'owiwi_chime.wav';
 const OWIWI_INDIGO = '#5B5BD6';
 
 export type PermissionState = 'granted' | 'denied' | 'undetermined';
@@ -37,7 +43,9 @@ export async function configureNotifications(): Promise<void> {
         name: 'Daily reminders',
         importance: Notifications.AndroidImportance.HIGH,
         lightColor: OWIWI_INDIGO,
+        sound: NOTIFICATION_SOUND,
       });
+      for (const id of LEGACY_CHANNEL_IDS) await Notifications.deleteNotificationChannelAsync(id);
     } catch (e) {
       warn('channel setup', e);
     }
@@ -100,7 +108,7 @@ async function doSync(): Promise<void> {
   for (const r of plan) {
     await Notifications.scheduleNotificationAsync({
       identifier: r.id,
-      content: { title: r.title, body: r.body, data: { url: '/' } },
+      content: { title: r.title, body: r.body, sound: NOTIFICATION_SOUND, data: { url: '/' } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.fireAt, channelId: CHANNEL_ID },
     });
   }
@@ -138,4 +146,19 @@ export async function cancelTodayNudge(): Promise<void> {
   } catch (e) {
     warn('cancel nudge', e);
   }
+}
+
+/**
+ * Fires one reminder a few seconds from now, using the real copy and channel,
+ * so the icon and text can be checked on a device. Not part of the schedule.
+ */
+export async function sendTestNotification(kind: ReminderKind = 'morning', delaySeconds = 3): Promise<boolean> {
+  if (!(await requestPermission())) return false;
+  const { title, body } = pickCopy(kind, localDate());
+  await Notifications.scheduleNotificationAsync({
+    identifier: `test.${Date.now()}`,
+    content: { title, body, sound: NOTIFICATION_SOUND, data: { url: '/' } },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: delaySeconds, channelId: CHANNEL_ID },
+  });
+  return true;
 }

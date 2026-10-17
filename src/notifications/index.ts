@@ -8,6 +8,7 @@ export {
   getPermissionStatus,
   syncReminders,
   cancelTodayNudge,
+  sendTestNotification,
   CHANNEL_ID,
 } from './schedule';
 export type { PermissionState } from './schedule';

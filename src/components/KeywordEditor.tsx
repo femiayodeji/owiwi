@@ -1,6 +1,7 @@
 // Keyword CRUD: add (free text or suggestion), rename, edit query, toggle, reorder, delete.
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { getDb } from '../db/client';
 import {
   addKeyword,
@@ -12,7 +13,9 @@ import {
   updateKeyword,
   type Keyword,
 } from '../db/queries';
+import { haptic } from '../lib/haptics';
 import { colors, radius, space } from '../lib/theme';
+import { PressScale } from './PressScale';
 import { Button, Chip, Field, ui } from './ui';
 
 export const KEYWORD_SUGGESTIONS = ['AI', 'Geopolitics', 'Football', 'Tech', 'Business', 'Nigeria', 'Science', 'Startups', 'Climate', 'Health'];
@@ -89,8 +92,10 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
 
       {suggestions.length > 0 ? (
         <View style={styles.chips}>
-          {suggestions.map((s) => (
-            <Chip key={s} label={`+ ${s}`} onPress={() => void add(s)} />
+          {suggestions.map((s, i) => (
+            <Animated.View key={s} entering={ZoomIn.delay(i * 45).springify().damping(11)}>
+              <Chip label={`+ ${s}`} onPress={() => void add(s)} />
+            </Animated.View>
           ))}
         </View>
       ) : null}
@@ -100,13 +105,20 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
       </Text>
 
       {keywords.map((k, i) => (
-        <View key={k.id} style={[styles.item, !k.enabled && styles.itemOff]}>
+        <Animated.View key={k.id} entering={FadeInDown.springify().damping(16)} style={[styles.item, !k.enabled && styles.itemOff]}>
           <View style={styles.itemRow}>
-            <Pressable style={{ flex: 1 }} onPress={() => setEditing(editing === k.id ? null : k.id)}>
+            <PressScale style={{ flex: 1 }} scaleTo={0.98} dimTo={0.7} onPress={() => setEditing(editing === k.id ? null : k.id)}>
               <Text style={styles.label}>{k.label}</Text>
               {k.query !== k.label ? <Text style={ui.muted}>Searches: {k.query}</Text> : null}
-            </Pressable>
-            <Switch value={k.enabled} onValueChange={(v) => void toggle(k, v)} trackColor={{ true: colors.indigo }} />
+            </PressScale>
+            <Switch
+              value={k.enabled}
+              onValueChange={(v) => {
+                haptic.select();
+                void toggle(k, v);
+              }}
+              trackColor={{ true: colors.indigo }}
+            />
           </View>
           {editing === k.id ? (
             <KeywordDetails
@@ -122,7 +134,7 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
               onDelete={() => remove(k)}
             />
           ) : null}
-        </View>
+        </Animated.View>
       ))}
       {keywords.length === 0 ? <Text style={ui.muted}>No keywords yet. Add one or tap a suggestion.</Text> : null}
     </View>
@@ -155,9 +167,9 @@ function KeywordDetails({
         <Chip label="↑ Up" onPress={canUp ? () => onMove(-1) : undefined} muted={!canUp} />
         <Chip label="↓ Down" onPress={canDown ? () => onMove(1) : undefined} muted={!canDown} />
         <View style={{ flex: 1 }} />
-        <Pressable onPress={onDelete} hitSlop={8}>
+        <PressScale onPress={onDelete} hitSlop={8} scaleTo={0.9}>
           <Text style={{ color: colors.danger, fontWeight: '600' }}>Delete</Text>
-        </Pressable>
+        </PressScale>
       </View>
       <Button title="Save" onPress={() => void onSave({ label, query })} disabled={!valid} />
     </View>

@@ -1,10 +1,24 @@
 // The feed: today's digest for the viewed slot as a full-screen vertical pager.
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Alert, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { Redirect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Owiwi, type OwiwiEmotion } from '../src/components/Owiwi';
 import { Pager } from '../src/components/Pager';
+import { PressScale } from '../src/components/PressScale';
+import { ProgressBar } from '../src/components/ProgressBar';
+import { SlotSwitcher } from '../src/components/SlotSwitcher';
+import { StreakFlame } from '../src/components/StreakFlame';
 import { Button, ui } from '../src/components/ui';
 import { STEP_LABEL, type GenerationStep } from '../src/digest/generate';
 import { isLateNight, SLOT_LABEL } from '../src/digest/slot';
@@ -24,10 +38,14 @@ export default function Feed() {
   const total = state.cards.length;
 
   const confirmRegenerate = () =>
-    Alert.alert('Regenerate this digest?', `Owiwi will fetch fresh headlines and rewrite your ${viewSlot} digest. This uses your API tokens.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Regenerate', onPress: () => void generate(viewSlot, true) },
-    ]);
+    Alert.alert(
+      'Regenerate this digest?',
+      `Owiwi will fetch fresh headlines and rewrite your ${viewSlot} digest. This uses your API tokens.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Regenerate', onPress: () => void generate(viewSlot, true) },
+      ],
+    );
 
   const openMenu = () =>
     Alert.alert('Owiwi', undefined, [
@@ -40,29 +58,27 @@ export default function Feed() {
     <SafeAreaView style={ui.screen} edges={['top', 'bottom']}>
       <View style={styles.top}>
         <View style={styles.streak} accessibilityLabel={`${streak.current} day streak`}>
-          <Text style={styles.streakText}>🔥 {streak.current}</Text>
+          <StreakFlame value={streak.current} size="sm" highlight={streak.doneToday} />
         </View>
         <View style={styles.slots}>
-          {(['morning', 'evening'] as Slot[]).map((slot) => (
-            <SlotTab
-              key={slot}
-              slot={slot}
-              selected={slot === viewSlot}
-              isActive={slot === activeSlot}
-              onPress={() => {
-                setIndex(0);
-                setViewSlot(slot);
-              }}
-            />
-          ))}
+          <SlotSwitcher
+            value={viewSlot}
+            activeSlot={activeSlot}
+            onChange={(slot) => {
+              setIndex(0);
+              setViewSlot(slot);
+            }}
+          />
         </View>
-        <Pressable onPress={openMenu} hitSlop={12} accessibilityLabel="Menu" style={styles.menu}>
+        <PressScale onPress={openMenu} hitSlop={12} accessibilityLabel="Menu" scaleTo={0.85} style={styles.menu}>
           <Text style={styles.menuText}>⋯</Text>
-        </Pressable>
+        </PressScale>
       </View>
 
       {state.status === 'ready' && total > 0 ? (
-        <Text style={styles.progress}>{index < total ? `${index + 1} / ${total}` : 'Done'}</Text>
+        <View style={styles.progress}>
+          <ProgressBar progress={Math.min(index + 1, total) / total} label={index < total ? `${index + 1} / ${total}` : 'Done'} />
+        </View>
       ) : null}
       {state.status === 'ready' && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
       {state.status === 'ready' && state.failedKeywords.length > 0 ? (
@@ -86,19 +102,6 @@ export default function Feed() {
   );
 }
 
-function SlotTab({ slot, selected, isActive, onPress }: { slot: Slot; selected: boolean; isActive: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="tab"
-      accessibilityState={{ selected }}
-      style={[styles.tab, selected && styles.tabOn, !isActive && !selected && styles.tabMuted]}
-    >
-      <Text style={[styles.tabText, selected && styles.tabTextOn]}>{SLOT_LABEL[slot]}</Text>
-    </Pressable>
-  );
-}
-
 function SlotBody(props: {
   slot: Slot;
   isActive: boolean;
@@ -119,10 +122,7 @@ function SlotBody(props: {
         <Owiwi emotion="thinking" showCopy />
         <View style={styles.steps}>
           {STEPS.map((step, i) => (
-            <Text key={step} style={[styles.step, i < current && styles.stepDone, i === current && styles.stepNow]}>
-              {i < current ? '✓ ' : i === current ? '• ' : '  '}
-              {STEP_LABEL[step]}
-            </Text>
+            <StepRow key={step} label={STEP_LABEL[step]} state={i < current ? 'done' : i === current ? 'now' : 'todo'} />
           ))}
         </View>
       </Centered>
@@ -146,15 +146,21 @@ function SlotBody(props: {
   if (state.status === 'empty') {
     return (
       <Centered>
-        <Owiwi emotion="sad" />
-        <Text style={[ui.h2, styles.center]}>No fresh headlines</Text>
-        <Text style={[ui.muted, styles.center]}>
-          Nothing new came back for your keywords in the last day. Try broader keywords, or check again later.
-        </Text>
-        <View style={styles.actions}>
+        <Stagger i={0}>
+          <Owiwi emotion="sad" />
+        </Stagger>
+        <Stagger i={1}>
+          <Text style={[ui.h2, styles.center]}>No fresh headlines</Text>
+        </Stagger>
+        <Stagger i={2}>
+          <Text style={[ui.muted, styles.center]}>
+            Nothing new came back for your keywords in the last day. Try broader keywords, or check again later.
+          </Text>
+        </Stagger>
+        <Stagger i={3} style={styles.actions}>
           <Button title="Try again" onPress={props.onGenerate} />
           <Button title="Edit keywords" variant="secondary" onPress={() => router.push('/settings/keywords')} />
-        </View>
+        </Stagger>
       </Centered>
     );
   }
@@ -162,13 +168,19 @@ function SlotBody(props: {
   if (state.status === 'failed') {
     return (
       <Centered>
-        <Owiwi emotion="sad" />
-        <Text style={[ui.h2, styles.center]}>Your digest didn't come together</Text>
-        <Text style={[ui.muted, styles.center]}>{state.error ?? 'Something went wrong. Try again.'}</Text>
-        <View style={styles.actions}>
+        <Stagger i={0}>
+          <Owiwi emotion="sad" />
+        </Stagger>
+        <Stagger i={1}>
+          <Text style={[ui.h2, styles.center]}>Your digest didn't come together</Text>
+        </Stagger>
+        <Stagger i={2}>
+          <Text style={[ui.muted, styles.center]}>{state.error ?? 'Something went wrong. Try again.'}</Text>
+        </Stagger>
+        <Stagger i={3} style={styles.actions}>
           <Button title="Try again" onPress={props.onGenerate} />
           <Button title="Open settings" variant="secondary" onPress={() => router.push('/settings')} />
-        </View>
+        </Stagger>
       </Centered>
     );
   }
@@ -177,40 +189,98 @@ function SlotBody(props: {
   const now = new Date();
   const emotion: OwiwiEmotion = isLateNight(now) ? 'sleepy' : props.streakLost ? 'sad' : slot === 'morning' ? 'happy' : 'idle';
   return (
-    <Centered>
-      <Owiwi emotion={emotion} showCopy />
-      <Text style={[ui.muted, styles.center, { marginTop: space.lg }]}>
-        {isActive ? 'Your digest is ready to build.' : `No ${slot} digest today. Make one if you like.`}
-      </Text>
-      <View style={styles.actions}>
+    <Centered key={slot}>
+      <Stagger i={0}>
+        <Owiwi emotion={emotion} showCopy />
+      </Stagger>
+      <Stagger i={1}>
+        <Text style={[ui.muted, styles.center, { marginTop: space.lg }]}>
+          {isActive ? 'Your digest is ready to build.' : `No ${slot} digest today. Make one if you like.`}
+        </Text>
+      </Stagger>
+      <Stagger i={2} style={styles.actions}>
         <Button title={`Generate ${slot} digest`} onPress={props.onGenerate} variant={isActive ? 'primary' : 'secondary'} />
-      </View>
+      </Stagger>
     </Centered>
   );
 }
 
-function Centered({ children }: { children: React.ReactNode }) {
+function Centered({ children }: { children: ReactNode }) {
   return <View style={styles.centered}>{children}</View>;
+}
+
+/** Fades content up in sequence. */
+function Stagger({ i, style, children }: { i: number; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(i * 90)
+        .springify()
+        .damping(16)}
+      style={[styles.stagger, style]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Generation step: the current one pulses, finished ones pop a check mark in. */
+function StepRow({ label, state }: { label: string; state: 'done' | 'now' | 'todo' }) {
+  const reduced = useReducedMotion();
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (state !== 'now' || reduced) {
+      pulse.value = 1;
+      return;
+    }
+    pulse.value = withRepeat(withSequence(withTiming(1.35, { duration: 520 }), withTiming(1, { duration: 520 })), -1);
+  }, [state, reduced, pulse]);
+  const dot = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }], opacity: 2 - pulse.value }));
+
+  return (
+    <View style={styles.stepRow}>
+      <View style={styles.stepIcon}>
+        {state === 'done' ? (
+          <Animated.View key="done" entering={ZoomIn.springify().damping(9)} style={styles.check}>
+            <Text style={styles.checkText}>✓</Text>
+          </Animated.View>
+        ) : state === 'now' ? (
+          <Animated.View key="now" style={[styles.nowDot, dot]} />
+        ) : (
+          <View style={styles.todoDot} />
+        )}
+      </View>
+      <Text style={[styles.step, state === 'done' && styles.stepDone, state === 'now' && styles.stepNow]}>{label}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.md, paddingTop: space.sm, gap: space.sm },
-  streak: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
-  streakText: { fontWeight: '800', color: colors.navy, fontSize: 15 },
-  slots: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  tab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill },
-  tabOn: { backgroundColor: colors.indigo },
-  tabMuted: { opacity: 0.45 },
-  tabText: { fontWeight: '700', color: colors.navy },
-  tabTextOn: { color: '#fff' },
+  streak: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderBottomWidth: 3,
+  },
+  slots: { flex: 1, alignItems: 'center' },
   menu: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   menuText: { fontSize: 24, color: colors.navy, fontWeight: '700' },
-  progress: { textAlign: 'center', color: colors.textMuted, marginTop: space.sm, fontVariant: ['tabular-nums'] },
+  progress: { marginHorizontal: space.md, marginTop: space.sm + 4 },
   banner: { textAlign: 'center', marginHorizontal: space.md, marginTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg },
   center: { textAlign: 'center', marginTop: space.md },
-  actions: { marginTop: space.lg, gap: space.sm, alignSelf: 'stretch' },
-  steps: { marginTop: space.lg, gap: 6 },
+  actions: { marginTop: space.lg, gap: space.sm, alignSelf: 'stretch', alignItems: 'stretch' },
+  stagger: { alignItems: 'center', alignSelf: 'stretch' },
+  steps: { marginTop: space.lg, gap: 10 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepIcon: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
+  checkText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  nowDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.indigo },
+  todoDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.border },
   step: { color: colors.textFaint, fontSize: 15 },
   stepNow: { color: colors.navy, fontWeight: '700' },
   stepDone: { color: colors.success },
