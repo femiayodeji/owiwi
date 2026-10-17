@@ -6,9 +6,37 @@ import { getProvider, saveProvider } from '../db/queries';
 import { newId } from '../lib/ids';
 import { getApiKey, hasApiKey, setApiKey } from '../lib/secureStore';
 import { colors, space } from '../lib/theme';
-import { createProvider, PRESETS, testConnection, type ProviderPreset } from '../llm';
+import {
+  createProvider,
+  DEFAULT_MODELS,
+  DEFAULT_PRESET_ID,
+  getPreset,
+  PRESETS,
+  SUGGESTED_MODELS,
+  testConnection,
+  type PresetId,
+  type ProviderPreset,
+} from '../llm';
 import type { ProviderConfig } from '../llm/types';
-import { Button, Chip, Field, ui } from './ui';
+import { Dropdown, type DropdownOption } from './Dropdown';
+import { Button, Field, ui } from './ui';
+
+const PRESET_OPTIONS: readonly DropdownOption<PresetId>[] = PRESETS.map((p) => ({
+  value: p.id,
+  label: p.label,
+  description: p.description,
+}));
+
+function modelOptions(preset: PresetId): DropdownOption<string>[] {
+  return SUGGESTED_MODELS[preset].map((m) => ({
+    value: m.id,
+    label: m.label,
+    description: m.note ? `${m.id} · ${m.note}` : m.id,
+    badge: m.id === DEFAULT_MODELS[preset] ? 'Recommended' : undefined,
+  }));
+}
+
+const isListed = (preset: PresetId, model: string) => SUGGESTED_MODELS[preset].some((m) => m.id === model);
 
 function presetFor(p: ProviderConfig): ProviderPreset {
   return (
@@ -19,10 +47,13 @@ function presetFor(p: ProviderConfig): ProviderPreset {
 
 export function ProviderForm({ providerId, onSaved }: { providerId?: string; onSaved: () => void }) {
   const [id] = useState(() => providerId ?? newId());
-  const [preset, setPreset] = useState<ProviderPreset>(PRESETS[0]);
-  const [label, setLabel] = useState(PRESETS[0].label);
-  const [baseUrl, setBaseUrl] = useState(PRESETS[0].baseUrl);
-  const [model, setModel] = useState(PRESETS[0].defaultModel);
+  const initial = getPreset(DEFAULT_PRESET_ID);
+  const [preset, setPreset] = useState<ProviderPreset>(initial);
+  const [label, setLabel] = useState(initial.label);
+  const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
+  const [model, setModel] = useState(initial.defaultModel);
+  /** Saved model isn't in the suggested list: open the model field as free text. */
+  const [customModel, setCustomModel] = useState(false);
   const [key, setKey] = useState('');
   const [hasSavedKey, setHasSavedKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -34,19 +65,24 @@ export function ProviderForm({ providerId, onSaved }: { providerId?: string; onS
     void (async () => {
       const p = await getProvider(await getDb(), providerId);
       if (!p) return;
-      setPreset(presetFor(p));
+      const found = presetFor(p);
+      setPreset(found);
       setLabel(p.label);
       setBaseUrl(p.baseUrl ?? '');
       setModel(p.model);
+      setCustomModel(!isListed(found.id, p.model));
       setHasSavedKey(await hasApiKey(providerId));
     })();
   }, [providerId]);
 
-  const pickPreset = (p: ProviderPreset) => {
+  const pickPreset = (id: PresetId) => {
+    const p = getPreset(id);
+    // Keep a name the user typed; otherwise follow the preset.
+    if (!label.trim() || label === preset.label) setLabel(p.label);
     setPreset(p);
-    setLabel(p.label);
     setBaseUrl(p.baseUrl);
     setModel(p.defaultModel);
+    setCustomModel(false);
     setResult(null);
   };
 
@@ -95,38 +131,56 @@ export function ProviderForm({ providerId, onSaved }: { providerId?: string; onS
     }
   };
 
+  const options = modelOptions(preset.id);
+
   return (
     <View>
       {!providerId ? (
-        <View style={styles.presets}>
-          {PRESETS.map((p) => (
-            <Chip key={p.id} label={p.label} selected={p.id === preset.id} onPress={() => pickPreset(p)} />
-          ))}
-        </View>
-      ) : null}
+        <Dropdown label="Provider" title="Choose a provider" value={preset.id} options={PRESET_OPTIONS} onChange={pickPreset} />
+      ) : (
+        <Field label="Provider" value={preset.label} editable={false} style={styles.readOnly} />
+      )}
 
-      <Field label="Name" value={label} onChangeText={setLabel} />
-      {preset.kind === 'openai_compatible' ? (
+      <Field label="Name" value={label} onChangeText={setLabel} placeholder={preset.label} />
+      {preset.baseUrlEditable ? (
         <Field
           label="Base URL"
           value={baseUrl}
           onChangeText={setBaseUrl}
-          editable={preset.baseUrlEditable}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
           placeholder="https://your-provider.example/v1"
           hint={needsBaseUrl ? 'Enter an https:// URL that ends at the API root (before /chat/completions).' : undefined}
         />
+      ) : preset.baseUrl ? (
+        <Text style={styles.fixedUrl}>Endpoint: {preset.baseUrl}</Text>
       ) : null}
-      <Field
-        label="Model"
-        value={model}
-        onChangeText={setModel}
-        autoCapitalize="none"
-        autoCorrect={false}
-        hint={preset.defaultModel ? `Suggested: ${preset.defaultModel}` : 'Enter the model ID from your provider.'}
-      />
+      {options.length > 0 ? (
+        <Dropdown
+          key={preset.id}
+          label="Model"
+          title={`${preset.label} models`}
+          value={model}
+          options={options}
+          onChange={setModel}
+          allowCustom
+          onChangeCustom={setModel}
+          initialCustom={customModel}
+          customPlaceholder="Model ID from your provider"
+          hint={model.trim() ? undefined : 'Enter the model ID from your provider.'}
+        />
+      ) : (
+        <Field
+          label="Model"
+          value={model}
+          onChangeText={setModel}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="Model ID from your provider"
+          hint="Enter the model ID from your provider."
+        />
+      )}
       <Field
         label="API key"
         value={key}
@@ -149,5 +203,6 @@ export function ProviderForm({ providerId, onSaved }: { providerId?: string; onS
 }
 
 const styles = StyleSheet.create({
-  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: space.md },
+  readOnly: { backgroundColor: colors.bg, color: colors.textMuted },
+  fixedUrl: { fontSize: 12, color: colors.textFaint, marginTop: -8, marginBottom: space.md },
 });

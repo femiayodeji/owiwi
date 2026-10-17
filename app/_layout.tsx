@@ -8,6 +8,7 @@ import { colors } from '../src/lib/theme';
 import { configureNotifications, syncReminders, useNotificationDeepLink } from '../src/notifications';
 import { useFeed } from '../src/store/feed';
 import { Button, ui } from '../src/components/ui';
+import { ToastHost } from '../src/components/Toast';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -76,6 +77,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings/schedule" options={{ title: 'Schedule & reminders' }} />
         <Stack.Screen name="settings/sources" options={{ title: 'News source' }} />
       </Stack>
+      <ToastHost />
     </SafeAreaProvider>
   );
 }

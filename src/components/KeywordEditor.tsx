@@ -1,6 +1,6 @@
 // Keyword CRUD: add (free text or suggestion), rename, edit query, toggle, reorder, delete.
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { getDb } from '../db/client';
 import {
@@ -16,6 +16,8 @@ import {
 import { haptic } from '../lib/haptics';
 import { colors, radius, space } from '../lib/theme';
 import { PressScale } from './PressScale';
+import { ConfirmDialog } from './Sheet';
+import { showToast } from './Toast';
 import { Button, Chip, Field, ui } from './ui';
 
 export const KEYWORD_SUGGESTIONS = ['AI', 'Geopolitics', 'Football', 'Tech', 'Business', 'Nigeria', 'Science', 'Startups', 'Climate', 'Health'];
@@ -24,6 +26,7 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Keyword | null>(null);
 
   const reload = useCallback(async () => {
     const list = await listKeywords(await getDb());
@@ -42,14 +45,14 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
     const clean = label.trim();
     if (!clean || has(clean)) return;
     const kw = await addKeyword(await getDb(), clean);
-    if (!kw.enabled) Alert.alert('Keyword added but off', `You can have up to ${MAX_ENABLED_KEYWORDS} keywords on at once.`);
+    if (!kw.enabled) showToast(`Added, but off. Up to ${MAX_ENABLED_KEYWORDS} keywords can be on at once.`, 'info');
     setDraft('');
     await reload();
   };
 
   const toggle = async (k: Keyword, on: boolean) => {
     const ok = await setKeywordEnabled(await getDb(), k.id, on);
-    if (!ok) Alert.alert('Limit reached', `Turn one off first. Up to ${MAX_ENABLED_KEYWORDS} keywords can be on at once.`);
+    if (!ok) showToast(`Limit reached. Turn one off first: up to ${MAX_ENABLED_KEYWORDS} can be on at once.`, 'warning');
     await reload();
   };
 
@@ -62,18 +65,13 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
     await reload();
   };
 
-  const remove = (k: Keyword) =>
-    Alert.alert('Delete keyword?', `"${k.label}" will be removed.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteKeyword(await getDb(), k.id);
-          await reload();
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    const k = toDelete;
+    setToDelete(null);
+    if (!k) return;
+    await deleteKeyword(await getDb(), k.id);
+    await reload();
+  };
 
   const suggestions = KEYWORD_SUGGESTIONS.filter((s) => !has(s));
 
@@ -131,12 +129,22 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
                 await reload();
               }}
               onMove={(d) => void move(i, d)}
-              onDelete={() => remove(k)}
+              onDelete={() => setToDelete(k)}
             />
           ) : null}
         </Animated.View>
       ))}
       {keywords.length === 0 ? <Text style={ui.muted}>No keywords yet. Add one or tap a suggestion.</Text> : null}
+      <ConfirmDialog
+        visible={toDelete !== null}
+        title="Delete keyword?"
+        message={toDelete ? `"${toDelete.label}" will be removed.` : undefined}
+        confirmLabel="Delete"
+        destructive
+        emotion="sad"
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
+      />
     </View>
   );
 }
@@ -167,7 +175,7 @@ function KeywordDetails({
         <Chip label="↑ Up" onPress={canUp ? () => onMove(-1) : undefined} muted={!canUp} />
         <Chip label="↓ Down" onPress={canDown ? () => onMove(1) : undefined} muted={!canDown} />
         <View style={{ flex: 1 }} />
-        <PressScale onPress={onDelete} hitSlop={8} scaleTo={0.9}>
+        <PressScale onPress={onDelete} hitSlop={8} scaleTo={0.9} accessibilityRole="button" accessibilityLabel={`Delete ${keyword.label}`}>
           <Text style={{ color: colors.danger, fontWeight: '600' }}>Delete</Text>
         </PressScale>
       </View>

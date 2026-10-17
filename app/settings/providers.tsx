@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { PressScale } from '../../src/components/PressScale';
+import { ConfirmDialog } from '../../src/components/Sheet';
 import { Button, ui } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { deleteProvider, listProviders, setActiveProvider } from '../../src/db/queries';
@@ -12,6 +13,7 @@ import type { ProviderConfig } from '../../src/llm/types';
 
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
+  const [toDelete, setToDelete] = useState<ProviderConfig | null>(null);
 
   const reload = useCallback(async () => setProviders(await listProviders(await getDb())), []);
   useFocusEffect(
@@ -20,19 +22,14 @@ export default function ProvidersScreen() {
     }, [reload]),
   );
 
-  const remove = (p: ProviderConfig) =>
-    Alert.alert('Delete provider?', `"${p.label}" and its saved key will be removed from this device.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteProvider(await getDb(), p.id);
-          await deleteApiKey(p.id);
-          await reload();
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    const p = toDelete;
+    setToDelete(null);
+    if (!p) return;
+    await deleteProvider(await getDb(), p.id);
+    await deleteApiKey(p.id);
+    await reload();
+  };
 
   return (
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
@@ -56,10 +53,16 @@ export default function ProvidersScreen() {
             <Text style={[ui.muted, { fontSize: 12 }]}>Key: ••••••••</Text>
           </PressScale>
           <View style={styles.actions}>
-            <PressScale onPress={() => router.push({ pathname: '/settings/provider', params: { id: p.id } })} hitSlop={8} scaleTo={0.9}>
+            <PressScale
+              onPress={() => router.push({ pathname: '/settings/provider', params: { id: p.id } })}
+              hitSlop={8}
+              scaleTo={0.9}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${p.label}`}
+            >
               <Text style={styles.link}>Edit</Text>
             </PressScale>
-            <PressScale onPress={() => remove(p)} hitSlop={8} scaleTo={0.9}>
+            <PressScale onPress={() => setToDelete(p)} hitSlop={8} scaleTo={0.9} accessibilityRole="button" accessibilityLabel={`Delete ${p.label}`}>
               <Text style={[styles.link, { color: colors.danger }]}>Delete</Text>
             </PressScale>
           </View>
@@ -68,6 +71,16 @@ export default function ProvidersScreen() {
       {providers.length === 0 ? <Text style={[ui.muted, { marginBottom: space.md }]}>No provider yet. Add one to build digests.</Text> : null}
       {providers.length > 1 ? <Text style={[ui.muted, { marginBottom: space.md }]}>Tap a provider to make it active.</Text> : null}
       <Button title="Add provider" onPress={() => router.push('/settings/provider')} />
+      <ConfirmDialog
+        visible={toDelete !== null}
+        title="Delete provider?"
+        message={toDelete ? `"${toDelete.label}" and its saved key will be removed from this device.` : undefined}
+        confirmLabel="Delete"
+        destructive
+        emotion="sad"
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
+      />
     </ScrollView>
   );
 }

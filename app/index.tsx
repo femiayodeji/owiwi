@@ -1,6 +1,6 @@
 // The feed: today's digest for the viewed slot as a full-screen vertical pager.
 import { useEffect, useState, type ReactNode } from 'react';
-import { Alert, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -17,6 +17,7 @@ import { Owiwi, type OwiwiEmotion } from '../src/components/Owiwi';
 import { Pager } from '../src/components/Pager';
 import { PressScale } from '../src/components/PressScale';
 import { ProgressBar } from '../src/components/ProgressBar';
+import { ActionSheet, ConfirmDialog, type SheetAction } from '../src/components/Sheet';
 import { SlotSwitcher } from '../src/components/SlotSwitcher';
 import { StreakFlame } from '../src/components/StreakFlame';
 import { Button, ui } from '../src/components/ui';
@@ -31,28 +32,33 @@ const STEPS: GenerationStep[] = ['fetching', 'writing', 'saving'];
 export default function Feed() {
   const { settings, activeSlot, viewSlot, slots, streak, setViewSlot, generate, completeDay } = useFeed();
   const [index, setIndex] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (settings.onboarded !== '1') return <Redirect href="/onboarding" />;
 
   const state = slots[viewSlot];
   const total = state.cards.length;
 
-  const confirmRegenerate = () =>
-    Alert.alert(
-      'Regenerate this digest?',
-      `Owiwi will fetch fresh headlines and rewrite your ${viewSlot} digest. This uses your API tokens.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Regenerate', onPress: () => void generate(viewSlot, true) },
-      ],
-    );
+  const confirmRegenerate = () => setConfirmOpen(true);
 
-  const openMenu = () =>
-    Alert.alert('Owiwi', undefined, [
-      ...(state.status === 'ready' ? [{ text: 'Regenerate digest', onPress: confirmRegenerate }] : []),
-      { text: 'Settings', onPress: () => router.push('/settings') },
-      { text: 'Cancel', style: 'cancel' as const },
-    ]);
+  const menuActions: SheetAction[] = [
+    ...(state.status === 'ready'
+      ? [
+          {
+            key: 'regenerate',
+            label: 'Regenerate digest',
+            description: 'Fetch fresh headlines and rewrite. Uses your API tokens.',
+            icon: '↻',
+            onPress: confirmRegenerate,
+          },
+        ]
+      : []),
+    { key: 'keywords', label: 'Keywords', icon: '#', onPress: () => router.push('/settings/keywords') },
+    { key: 'providers', label: 'LLM provider', icon: '✦', onPress: () => router.push('/settings/providers') },
+    { key: 'schedule', label: 'Schedule & reminders', icon: '⏰', onPress: () => router.push('/settings/schedule') },
+    { key: 'settings', label: 'All settings', icon: '⚙', onPress: () => router.push('/settings') },
+  ];
 
   return (
     <SafeAreaView style={ui.screen} edges={['top', 'bottom']}>
@@ -70,7 +76,11 @@ export default function Feed() {
             }}
           />
         </View>
-        <PressScale onPress={openMenu} hitSlop={12} accessibilityLabel="Menu" scaleTo={0.85} style={styles.menu}>
+        <PressScale
+          onPress={() => setMenuOpen(true)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Menu" scaleTo={0.85} style={styles.menu}>
           <Text style={styles.menuText}>⋯</Text>
         </PressScale>
       </View>
@@ -98,6 +108,20 @@ export default function Feed() {
           onReachedEnd={() => void completeDay(viewSlot)}
         />
       </View>
+
+      <ActionSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Owiwi" actions={menuActions} />
+      <ConfirmDialog
+        visible={confirmOpen}
+        title="Regenerate this digest?"
+        message={`Owiwi will fetch fresh headlines and rewrite your ${viewSlot} digest. This uses your API tokens.`}
+        confirmLabel="Regenerate"
+        emotion="thinking"
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void generate(viewSlot, true);
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </SafeAreaView>
   );
 }

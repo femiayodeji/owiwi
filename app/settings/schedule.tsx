@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
 import { Button, NumberStepper, Section, TimeStepper, ToggleRow, ui } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { saveSettings, type Settings } from '../../src/db/settings';
@@ -8,11 +9,18 @@ import { requestPermission, sendTestNotification, syncReminders, type ReminderKi
 import { space } from '../../src/lib/theme';
 import { useFeed } from '../../src/store/feed';
 
+const REMINDER_OPTIONS: readonly DropdownOption<ReminderKind>[] = [
+  { value: 'morning', label: 'Morning reminder' },
+  { value: 'evening', label: 'Evening reminder' },
+  { value: 'nudge', label: 'Streak-saver nudge' },
+];
+
 export default function ScheduleScreen() {
   const settings = useFeed((s) => s.settings);
   const refresh = useFeed((s) => s.refresh);
   const [error, setError] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [testKind, setTestKind] = useState<ReminderKind>('morning');
 
   const test = async (kind: ReminderKind) => {
     const ok = await sendTestNotification(kind);
@@ -63,9 +71,8 @@ export default function ScheduleScreen() {
       </Section>
       <Section title="Test">
         <View style={{ padding: space.md, gap: space.sm }}>
-          <Button title="Send test notification (morning)" variant="secondary" onPress={() => void test('morning')} />
-          <Button title="Send test notification (evening)" variant="secondary" onPress={() => void test('evening')} />
-          <Button title="Send test notification (nudge)" variant="secondary" onPress={() => void test('nudge')} />
+          <Dropdown label="Reminder type" value={testKind} options={REMINDER_OPTIONS} onChange={setTestKind} />
+          <Button title="Send test notification" variant="secondary" onPress={() => void test(testKind)} />
           {testStatus ? <Text style={ui.muted}>{testStatus}</Text> : null}
         </View>
       </Section>

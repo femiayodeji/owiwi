@@ -4,6 +4,8 @@ import type { ProviderKind } from './types';
 export interface ProviderPreset {
   id: PresetId;
   label: string;
+  /** One-line picker description. Keep it generic; no unverifiable claims. */
+  description: string;
   kind: ProviderKind;
   baseUrl: string;
   defaultModel: string;
@@ -16,6 +18,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'openai',
     label: 'OpenAI',
+    description: 'GPT models from OpenAI',
     kind: 'openai_compatible',
     baseUrl: 'https://api.openai.com/v1',
     defaultModel: DEFAULT_MODELS.openai,
@@ -25,6 +28,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'anthropic',
     label: 'Anthropic',
+    description: 'Claude models from Anthropic',
     kind: 'anthropic',
     baseUrl: '',
     defaultModel: DEFAULT_MODELS.anthropic,
@@ -34,6 +38,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'gemini',
     label: 'Gemini',
+    description: "Google's Gemini models",
     kind: 'gemini',
     baseUrl: '',
     defaultModel: DEFAULT_MODELS.gemini,
@@ -43,6 +48,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'openrouter',
     label: 'OpenRouter',
+    description: 'Many vendors, one key. Has free options',
     kind: 'openai_compatible',
     baseUrl: 'https://openrouter.ai/api/v1',
     defaultModel: DEFAULT_MODELS.openrouter,
@@ -52,6 +58,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'groq',
     label: 'Groq',
+    description: 'Fast open models. Has free options',
     kind: 'openai_compatible',
     baseUrl: 'https://api.groq.com/openai/v1',
     defaultModel: DEFAULT_MODELS.groq,
@@ -61,6 +68,7 @@ export const PRESETS: readonly ProviderPreset[] = [
   {
     id: 'custom',
     label: 'Custom OpenAI-compatible',
+    description: 'Any OpenAI-compatible API (base URL)',
     kind: 'openai_compatible',
     baseUrl: '',
     defaultModel: DEFAULT_MODELS.custom,
@@ -68,6 +76,9 @@ export const PRESETS: readonly ProviderPreset[] = [
     baseUrlEditable: true,
   },
 ];
+
+/** Preset pre-selected for a new provider: Gemini, for its generous free tier and cheap default model. */
+export const DEFAULT_PRESET_ID: PresetId = 'gemini';
 
 export function getPreset(id: PresetId): ProviderPreset {
   const preset = PRESETS.find((p) => p.id === id);
