@@ -67,7 +67,7 @@ CREATE TABLE providers (          -- non-secret config only
   model TEXT NOT NULL,
   is_active INTEGER NOT NULL DEFAULT 0   -- exactly one active
 );
--- API key: SecureStore key `apikey:<providers.id>`
+-- API key: SecureStore key `apikey.<providers.id>` (SecureStore keys allow only [A-Za-z0-9._-], so not `apikey:`)
 
 CREATE TABLE digests (
   id TEXT PRIMARY KEY,
