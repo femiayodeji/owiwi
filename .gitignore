@@ -40,3 +40,5 @@ yarn-error.*
 /ios
 /android
 .expo-metro.log
+/android-rebuild.sh
+/prebuild.log*

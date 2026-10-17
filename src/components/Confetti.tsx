@@ -11,10 +11,11 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '../lib/theme';
+import { useTheme } from '../lib/useTheme';
 
-// Brand indigo, beak orange and the sparkle colors from the brand sheet.
-const PALETTE = [colors.indigo, colors.beak, '#FFC93C', '#5FD068', '#3EC6D8', '#FF7AB6'];
+// Sparkle colors from the brand sheet; the theme's indigo and beak orange are added per theme.
+// All are mid/high-luminance so they read on light, paper and dark backgrounds alike.
+const SPARKLES = ['#FFC93C', '#5FD068', '#3EC6D8', '#FF7AB6'] as const;
 const GRAVITY = 1400; // px/s^2
 
 interface Piece {
@@ -39,13 +40,13 @@ interface Props {
   count?: number;
 }
 
-function makePieces(count: number): Piece[] {
+function makePieces(count: number, palette: readonly string[]): Piece[] {
   const r = (min: number, max: number) => min + Math.random() * (max - min);
   return Array.from({ length: count }, (_, i) => {
     const angle = r(-Math.PI * 0.85, -Math.PI * 0.15); // upward fan
     const speed = r(420, 900);
     return {
-      color: PALETTE[i % PALETTE.length] ?? colors.indigo,
+      color: palette[i % palette.length] ?? SPARKLES[0],
       w: r(6, 10),
       h: r(10, 16),
       vx: Math.cos(angle) * speed,
@@ -60,8 +61,13 @@ function makePieces(count: number): Piece[] {
 
 export function Confetti({ trigger, originX = 0.5, originY = 0.35, count = 40 }: Props) {
   const reduced = useReducedMotion();
+  const { indigo, beak } = useTheme().colors;
   // New pieces (and fresh trajectories) for every trigger.
-  const pieces = useMemo(() => (trigger > 0 ? makePieces(count) : []), [trigger, count]);
+  const pieces = useMemo(
+    () => (trigger > 0 ? makePieces(count, [indigo, beak, ...SPARKLES]) : []),
+    // Theme changes don't replay a burst; colors are picked when it fires.
+    [trigger, count],
+  );
   if (reduced || pieces.length === 0) return null;
 
   return (

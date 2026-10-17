@@ -6,7 +6,8 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '../lib/haptics';
-import { colors, radius, space } from '../lib/theme';
+import { radius, space } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import { PressScale } from './PressScale';
 
 export interface DropdownOption<T extends string> {
@@ -51,6 +52,8 @@ export function Dropdown<T extends string>({
   customPlaceholder,
   initialCustom,
 }: Props<T>) {
+  const t = useTheme();
+  const styles = useStyles();
   const selected = options.find((o) => o.value === value);
   const [custom, setCustom] = useState(!!allowCustom && (!!initialCustom || (!selected && value !== '')));
   const [open, setOpen] = useState(false);
@@ -89,7 +92,8 @@ export function Dropdown<T extends string>({
             onChangeCustom?.(t);
           }}
           placeholder={customPlaceholder ?? 'Type a value'}
-          placeholderTextColor={colors.textFaint}
+          placeholderTextColor={t.colors.textFaint}
+          keyboardAppearance={t.dark ? 'dark' : 'light'}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!disabled}
@@ -173,6 +177,7 @@ export function Dropdown<T extends string>({
 }
 
 function Badge({ text }: { text: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.badge}>
       <Text style={styles.badgeText}>{text}</Text>
@@ -201,6 +206,7 @@ function OptionSheet<T extends string>({
   onCustom: () => void;
   onClose: () => void;
 }) {
+  const styles = useStyles();
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -297,54 +303,54 @@ function OptionSheet<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   field: { marginBottom: space.md },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
-  hint: { fontSize: 12, color: colors.textFaint, marginTop: 4 },
+  label: { fontSize: 13, fontWeight: '600', color: t.colors.textMuted, marginBottom: 6 },
+  hint: { fontSize: 12, color: t.colors.textFaint, marginTop: 4 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: colors.text,
+    color: t.colors.text,
   },
   backLink: { alignSelf: 'flex-start', marginTop: 6 },
-  backLinkText: { fontSize: 13, fontWeight: '700', color: colors.indigo },
+  backLinkText: { fontSize: 13, fontWeight: '700', color: t.colors.indigo },
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 50,
   },
-  triggerDisabled: { backgroundColor: colors.bg },
+  triggerDisabled: { backgroundColor: t.colors.surfaceAlt },
   triggerTop: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  value: { fontSize: 16, color: colors.text, fontWeight: '600', flexShrink: 1 },
-  secondary: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  chevron: { fontSize: 20, color: colors.indigo, fontWeight: '800', marginLeft: space.sm, marginTop: -8 },
-  badge: { backgroundColor: colors.indigo, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  backdrop: { backgroundColor: 'rgba(30, 35, 66, 0.45)' },
+  value: { fontSize: 16, color: t.colors.text, fontWeight: '600', flexShrink: 1 },
+  secondary: { fontSize: 13, color: t.colors.textMuted, marginTop: 2 },
+  chevron: { fontSize: 20, color: t.colors.indigo, fontWeight: '800', marginLeft: space.sm, marginTop: -8 },
+  badge: { backgroundColor: t.colors.indigo, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  badgeText: { color: t.colors.onPrimary, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+  backdrop: { backgroundColor: t.colors.overlay },
   sheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingHorizontal: space.md,
     paddingTop: space.sm,
   },
-  grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.border, marginBottom: space.sm },
-  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.navy, marginBottom: space.sm, paddingHorizontal: 4 },
+  grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: t.colors.border, marginBottom: space.sm },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: t.colors.navy, marginBottom: space.sm, paddingHorizontal: 4 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,8 +360,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     marginBottom: 2,
   },
-  optionOn: { backgroundColor: colors.bg },
-  optionLabel: { fontSize: 16, color: colors.text, fontWeight: '500' },
-  optionLabelOn: { color: colors.indigo, fontWeight: '700' },
-  check: { width: 24, textAlign: 'right', color: colors.indigo, fontSize: 18, fontWeight: '800' },
-});
+  optionOn: { backgroundColor: t.colors.surfaceAlt },
+  optionLabel: { fontSize: 16, color: t.colors.text, fontWeight: '500' },
+  optionLabelOn: { color: t.colors.indigo, fontWeight: '700' },
+  check: { width: 24, textAlign: 'right', color: t.colors.indigo, fontSize: 18, fontWeight: '800' },
+}));

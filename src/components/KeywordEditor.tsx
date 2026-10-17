@@ -1,6 +1,6 @@
 // Keyword CRUD: add (free text or suggestion), rename, edit query, toggle, reorder, delete.
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { getDb } from '../db/client';
 import {
@@ -14,15 +14,19 @@ import {
   type Keyword,
 } from '../db/queries';
 import { haptic } from '../lib/haptics';
-import { colors, radius, space } from '../lib/theme';
+import { radius, space } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import { PressScale } from './PressScale';
 import { ConfirmDialog } from './Sheet';
 import { showToast } from './Toast';
-import { Button, Chip, Field, ui } from './ui';
+import { Button, Chip, Field, useUi } from './ui';
 
 export const KEYWORD_SUGGESTIONS = ['AI', 'Geopolitics', 'Football', 'Tech', 'Business', 'Nigeria', 'Science', 'Startups', 'Climate', 'Health'];
 
 export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) => void }) {
+  const theme = useTheme();
+  const styles = useStyles();
+  const ui = useUi();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -115,7 +119,9 @@ export function KeywordEditor({ onChange }: { onChange?: (keywords: Keyword[]) =
                 haptic.select();
                 void toggle(k, v);
               }}
-              trackColor={{ true: colors.indigo }}
+              trackColor={{ true: theme.colors.indigo, false: theme.colors.borderStrong }}
+              thumbColor={theme.colors.surface}
+              ios_backgroundColor={theme.colors.borderStrong}
             />
           </View>
           {editing === k.id ? (
@@ -164,6 +170,7 @@ function KeywordDetails({
   onMove: (delta: number) => void;
   onDelete: () => void;
 }) {
+  const styles = useStyles();
   const [label, setLabel] = useState(keyword.label);
   const [query, setQuery] = useState(keyword.query);
   const valid = label.trim().length > 0 && query.trim().length > 0;
@@ -176,7 +183,7 @@ function KeywordDetails({
         <Chip label="↓ Down" onPress={canDown ? () => onMove(1) : undefined} muted={!canDown} />
         <View style={{ flex: 1 }} />
         <PressScale onPress={onDelete} hitSlop={8} scaleTo={0.9} accessibilityRole="button" accessibilityLabel={`Delete ${keyword.label}`}>
-          <Text style={{ color: colors.danger, fontWeight: '600' }}>Delete</Text>
+          <Text style={styles.delete}>Delete</Text>
         </PressScale>
       </View>
       <Button title="Save" onPress={() => void onSave({ label, query })} disabled={!valid} />
@@ -184,12 +191,13 @@ function KeywordDetails({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: space.md },
-  item: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginBottom: 8, padding: space.md },
+  item: { backgroundColor: t.colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: t.colors.border, marginBottom: 8, padding: space.md },
   itemOff: { opacity: 0.6 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  label: { fontSize: 16, fontWeight: '600', color: colors.navy },
+  label: { fontSize: 16, fontWeight: '600', color: t.colors.navy },
   details: { marginTop: space.md },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: space.md },
-});
+  delete: { color: t.colors.danger, fontWeight: '600' },
+}));

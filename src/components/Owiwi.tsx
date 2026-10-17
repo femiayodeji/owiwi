@@ -19,7 +19,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { haptic } from '../lib/haptics';
-import { colors, emotionBg, radius } from '../lib/theme';
+import { radius } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import { OWIWI_ART, OWIWI_COPY, type OwiwiEmotion } from './owiwiAssets';
 
 export type { OwiwiEmotion } from './owiwiAssets';
@@ -60,7 +61,11 @@ const TAP_WINDOW_MS = 2000;
 const TAP_BURST = 5;
 
 export function Owiwi({ emotion, size = 160, showCopy = false, caption, onTap }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const reduced = useReducedMotion();
+  // Ground shadow strength: a soft tint of the theme's shadow color (stronger on dark backgrounds).
+  const shadowAlpha = theme.dark ? 0.45 : 0.14;
 
   // Idle loop (per emotion) and tap reactions are separate layers, combined in the style.
   const loopY = useSharedValue(0);
@@ -140,7 +145,7 @@ export function Owiwi({ emotion, size = 160, showCopy = false, caption, onTap }:
   const shadow = useAnimatedStyle(() => {
     const lift = Math.max(0, -(loopY.value + tapY.value)) / size;
     return {
-      opacity: interpolate(lift, [0, 0.4], [1, 0.35], 'clamp'),
+      opacity: shadowAlpha * interpolate(lift, [0, 0.4], [1, 0.35], 'clamp'),
       transform: [{ scaleX: interpolate(lift, [0, 0.4], [1, 0.55], 'clamp') }, { scaleY: interpolate(lift, [0, 0.4], [1, 0.7], 'clamp') }],
     };
   });
@@ -177,7 +182,7 @@ export function Owiwi({ emotion, size = 160, showCopy = false, caption, onTap }:
               {art ? (
                 <Image source={art} style={{ width: size, height: size }} resizeMode="contain" />
               ) : (
-                <View style={[styles.placeholder, { backgroundColor: emotionBg[emotion], borderRadius: size / 4 }]}>
+                <View style={[styles.placeholder, { backgroundColor: theme.emotionBg[emotion], borderRadius: size / 4 }]}>
                   <Text style={styles.phTitle}>Owiwi</Text>
                   <Text style={styles.phState}>{emotion}</Text>
                   <Text style={styles.phNote}>PLACEHOLDER{'\n'}art missing</Text>
@@ -258,19 +263,19 @@ function startLoop(
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((th) => ({
   wrap: { alignItems: 'center' },
-  shadow: { position: 'absolute', backgroundColor: 'rgba(30, 35, 66, 0.14)' },
+  shadow: { position: 'absolute', backgroundColor: th.colors.shadow },
   placeholder: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.indigo,
+    borderColor: th.colors.indigo,
   },
-  phTitle: { color: colors.indigo, fontWeight: '800', fontSize: 18 },
-  phState: { color: colors.navy, fontWeight: '600', marginTop: 2 },
-  phNote: { color: colors.danger, fontSize: 10, fontWeight: '700', marginTop: 6, textAlign: 'center', letterSpacing: 0.5 },
-  copy: { marginTop: 14, color: colors.textMuted, fontSize: 15, textAlign: 'center', maxWidth: 280, borderRadius: radius.sm },
-});
+  phTitle: { color: th.colors.indigo, fontWeight: '800', fontSize: 18 },
+  phState: { color: th.colors.navy, fontWeight: '600', marginTop: 2 },
+  phNote: { color: th.colors.danger, fontSize: 10, fontWeight: '700', marginTop: 6, textAlign: 'center', letterSpacing: 0.5 },
+  copy: { marginTop: 14, color: th.colors.textMuted, fontSize: 15, textAlign: 'center', maxWidth: 280, borderRadius: radius.sm },
+}));

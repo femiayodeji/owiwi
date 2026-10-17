@@ -8,12 +8,13 @@ import { KeywordEditor } from '../src/components/KeywordEditor';
 import { Owiwi } from '../src/components/Owiwi';
 import { ProgressBar } from '../src/components/ProgressBar';
 import { ProviderForm } from '../src/components/ProviderForm';
-import { Button, Section, TimeStepper, ui } from '../src/components/ui';
+import { Button, Section, TimeStepper, useUi } from '../src/components/ui';
 import { getDb } from '../src/db/client';
 import { getActiveProvider } from '../src/db/queries';
 import { saveSettings } from '../src/db/settings';
 import { haptic } from '../src/lib/haptics';
-import { colors, space } from '../src/lib/theme';
+import { space } from '../src/lib/theme';
+import { useTheme } from '../src/lib/useTheme';
 import { requestPermission, syncReminders } from '../src/notifications';
 import { useFeed } from '../src/store/feed';
 
@@ -29,6 +30,8 @@ export default function Onboarding() {
   const [evening, setEvening] = useState(useFeed.getState().settings.evening_time);
   const [hasProvider, setHasProvider] = useState(false);
   const refresh = useFeed((s) => s.refresh);
+  const ui = useUi();
+  const { colors } = useTheme();
 
   const next = () => {
     setDir(1);

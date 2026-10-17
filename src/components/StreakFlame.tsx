@@ -1,6 +1,6 @@
 // Animated streak counter: flickering flame + a number that rolls up and pops when it increases.
 import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   Easing,
   Keyframe,
@@ -13,7 +13,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '../lib/theme';
+import { makeStyles } from '../lib/useTheme';
 
 const SIZES = {
   sm: { font: 15, flame: 15, gap: 4 },
@@ -34,6 +34,7 @@ function rollUp(distance: number) {
 
 /** value: streak days. highlight: today is done (lit, flickering flame; dimmed otherwise). size: 'sm' top bar | 'lg' hero. */
 export function StreakFlame({ value, highlight = false, size = 'sm' }: { value: number; highlight?: boolean; size?: 'sm' | 'lg' }) {
+  const styles = useStyles();
   const reduced = useReducedMotion();
   const dims = SIZES[size];
   const prev = useRef(value);
@@ -90,8 +91,8 @@ export function StreakFlame({ value, highlight = false, size = 'sm' }: { value: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   row: { flexDirection: 'row', alignItems: 'center' },
   numWrap: { overflow: 'hidden' },
-  num: { fontWeight: '800', color: colors.navy, fontVariant: ['tabular-nums'] },
-});
+  num: { fontWeight: '800', color: t.colors.navy, fontVariant: ['tabular-nums'] },
+}));

@@ -1,14 +1,27 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Row, Section, ui } from '../../src/components/ui';
+import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
+import { Row, Section, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { getActiveProvider, listKeywords } from '../../src/db/queries';
+import { saveSettings } from '../../src/db/settings';
+import { radius, space, THEME_MODE_OPTIONS, type ThemeMode } from '../../src/lib/theme';
+import { makeStyles, useTheme } from '../../src/lib/useTheme';
 import { NEWS_SOURCES } from '../../src/news';
 import { useFeed } from '../../src/store/feed';
 
+const THEME_OPTIONS: readonly DropdownOption<ThemeMode>[] = THEME_MODE_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+  description: o.description,
+}));
+
 export default function SettingsHome() {
   const settings = useFeed((s) => s.settings);
+  const reloadSettings = useFeed((s) => s.reloadSettings);
+  const ui = useUi();
+  const styles = useStyles();
   const [summary, setSummary] = useState({ keywords: '', provider: '' });
 
   useFocusEffect(
@@ -25,10 +38,22 @@ export default function SettingsHome() {
     }, []),
   );
 
+  const setThemeMode = async (theme_mode: ThemeMode) => {
+    if (theme_mode === settings.theme_mode) return;
+    await saveSettings(await getDb(), { theme_mode });
+    await reloadSettings();
+  };
+
   const source = NEWS_SOURCES.find((s) => s.id === settings.rss_provider)?.label ?? settings.rss_provider;
 
   return (
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
+      <Section title="Appearance">
+        <View style={styles.appearance}>
+          <Dropdown label="Theme" value={settings.theme_mode} options={THEME_OPTIONS} onChange={(m) => void setThemeMode(m)} />
+          <ThemePreview />
+        </View>
+      </Section>
       <Section title="Your feed">
         <Row title="Keywords" subtitle={summary.keywords} onPress={() => router.push('/settings/keywords')} />
         <Row title="News source" subtitle={`${source} · ${settings.locale}`} onPress={() => router.push('/settings/sources')} />
@@ -49,3 +74,38 @@ export default function SettingsHome() {
     </ScrollView>
   );
 }
+
+/** Live strip of the active theme: background, surface and accent swatches plus a type sample. */
+function ThemePreview() {
+  const theme = useTheme();
+  const styles = useStyles();
+  const { colors, type } = theme;
+  return (
+    <View style={styles.preview} accessibilityLabel={`Preview of the ${theme.name} theme`}>
+      <View style={[styles.swatch, { backgroundColor: colors.bg }]} />
+      <View style={[styles.swatch, { backgroundColor: colors.surface }]} />
+      <View style={[styles.swatch, { backgroundColor: colors.indigo, borderColor: colors.indigo }]} />
+      <Text style={[styles.sample, { fontFamily: type.readingFont }]}>Aa</Text>
+      <Text style={styles.sampleName} numberOfLines={1}>
+        {theme.name === 'reading' ? 'Serif, roomier text' : theme.dark ? 'Dark' : 'Light'}
+      </Text>
+    </View>
+  );
+}
+
+const useStyles = makeStyles(({ colors }) => ({
+  appearance: { padding: space.md, gap: space.sm },
+  preview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    padding: space.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  swatch: { width: 22, height: 22, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong },
+  sample: { fontSize: 20, fontWeight: '700', color: colors.navy, marginLeft: space.xs },
+  sampleName: { flex: 1, fontSize: 13, color: colors.textMuted },
+}));

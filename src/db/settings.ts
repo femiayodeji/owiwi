@@ -12,6 +12,7 @@ export const SettingsSchema = z.object({
   nudge_enabled: z.enum(['0', '1']).default('1'),
   nudge_time: time.default('21:30'),
   onboarded: z.enum(['0', '1']).default('0'),
+  theme_mode: z.enum(['system', 'light', 'dark', 'reading']).default('system'),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

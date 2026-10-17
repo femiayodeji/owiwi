@@ -40,6 +40,8 @@ interface FeedStore {
 
   /** Re-reads everything from the DB (after a wipe) and auto-generates the active slot if needed. */
   refresh(): Promise<void>;
+  /** Re-reads settings only (no wipe, no generation). For appearance-style changes. */
+  reloadSettings(): Promise<void>;
   setViewSlot(slot: Slot): void;
   generate(slot: Slot, force?: boolean): Promise<void>;
   completeDay(slot: Slot): Promise<void>;
@@ -125,6 +127,10 @@ export const useFeed = create<FeedStore>((set, get) => {
         autoAttempted.add(key);
         void get().generate(active);
       }
+    },
+
+    async reloadSettings() {
+      set({ settings: await loadSettings(await getDb()) });
     },
 
     setViewSlot(slot) {

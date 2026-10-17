@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic', // themes: System follows the OS (needs expo-system-ui)
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'app.owiwi',

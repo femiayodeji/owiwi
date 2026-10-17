@@ -1,10 +1,11 @@
 // Morning / Evening segmented control with a sliding pill. The non-active slot stays muted.
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { SLOT_LABEL } from '../digest/slot';
 import { haptic } from '../lib/haptics';
-import { colors, radius } from '../lib/theme';
+import { radius } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import type { Slot } from '../llm/types';
 
 const SLOTS: Slot[] = ['morning', 'evening'];
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function SlotSwitcher({ value, activeSlot, onChange }: Props) {
+  const styles = useStyles();
   const [segW, setSegW] = useState(0);
   const pos = useSharedValue(SLOTS.indexOf(value));
   // 1 when viewing the active slot; the pill dims when viewing the deprioritized one.
@@ -32,7 +34,8 @@ export function SlotSwitcher({ value, activeSlot, onChange }: Props) {
   const pill = useAnimatedStyle(() => ({
     width: segW,
     transform: [{ translateX: pos.value * segW }],
-    backgroundColor: interpolateColor(prominent.value, [0, 1], ['#A5A5E6', colors.indigo]),
+    // Dimmed indigo when viewing the deprioritized slot; works on any theme's surface.
+    opacity: 0.5 + 0.5 * prominent.value,
   }));
 
   return (
@@ -56,12 +59,16 @@ export function SlotSwitcher({ value, activeSlot, onChange }: Props) {
 }
 
 function Segment({ slot, selected, muted, onPress }: { slot: Slot; selected: boolean; muted: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const styles = useStyles();
+  // Plain strings captured by the worklet below.
+  const { navy, onPrimary } = t.colors;
   const on = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
     on.value = withTiming(selected ? 1 : 0, { duration: 180 });
   }, [selected, on]);
   const text = useAnimatedStyle(() => ({
-    color: interpolateColor(on.value, [0, 1], [colors.navy, '#ffffff']),
+    color: interpolateColor(on.value, [0, 1], [navy, onPrimary]),
     opacity: muted ? 0.45 + 0.4 * on.value : 1,
   }));
   return (
@@ -78,20 +85,20 @@ function Segment({ slot, selected, muted, onPress }: { slot: Slot; selected: boo
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   track: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: t.colors.surface,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: t.colors.border,
     padding: PAD,
     alignSelf: 'center',
     width: 220,
   },
-  pill: { position: 'absolute', top: PAD, bottom: PAD, left: PAD, borderRadius: radius.pill },
+  pill: { position: 'absolute', top: PAD, bottom: PAD, left: PAD, borderRadius: radius.pill, backgroundColor: t.colors.indigo },
   seg: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 7, gap: 5 },
   segText: { fontWeight: '800', fontSize: 14 },
-  nowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.beak },
-  nowDotOn: { backgroundColor: '#fff' },
-});
+  nowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.beak },
+  nowDotOn: { backgroundColor: t.colors.onPrimary },
+}));

@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 import * as WebBrowser from 'expo-web-browser';
 import type { Card } from '../db/queries';
 import { relativeTime } from '../lib/dates';
 import { haptic } from '../lib/haptics';
-import { colors, radius, space } from '../lib/theme';
+import { radius, space } from '../lib/theme';
+import { makeStyles } from '../lib/useTheme';
 import { PressScale } from './PressScale';
 
 interface Props {
@@ -22,6 +23,7 @@ const ENTER = { damping: 15, stiffness: 170, mass: 0.8 } as const;
 const RESET_DELAY = 400;
 
 export function StoryCard({ card, height, active }: Props) {
+  const styles = useStyles();
   const reduced = useReducedMotion();
   const when = relativeTime(card.publishedAt);
   const meta = [card.source, when].filter(Boolean).join(' · ');
@@ -88,34 +90,45 @@ export function StoryCard({ card, height, active }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.md, paddingVertical: space.md, justifyContent: 'center' },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: space.lg,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderBottomWidth: 5,
-    shadowColor: colors.navy,
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  chip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EEEAFD',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    marginBottom: space.md,
-    maxWidth: '100%',
-  },
-  chipText: { color: colors.indigoDark, fontWeight: '700', fontSize: 13 },
-  title: { fontSize: 26, lineHeight: 32, fontWeight: '800', color: colors.navy },
-  summary: { fontSize: 17, lineHeight: 26, color: colors.text, marginTop: space.md },
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: space.lg, gap: space.md },
-  meta: { flex: 1, color: colors.textMuted, fontSize: 13 },
-  readMore: { color: colors.indigo, fontSize: 14, fontWeight: '600' },
+const useStyles = makeStyles((t) => {
+  const font = t.type.readingFont ? { fontFamily: t.type.readingFont } : {};
+  const scale = t.type.readingScale;
+  return {
+    page: { paddingHorizontal: space.md, paddingVertical: space.md, justifyContent: 'center' },
+    card: {
+      backgroundColor: t.colors.surface,
+      borderRadius: radius.lg,
+      padding: space.lg,
+      borderWidth: 2,
+      borderColor: t.colors.border,
+      borderBottomWidth: 5,
+      borderBottomColor: t.colors.borderStrong,
+      shadowColor: t.colors.shadow,
+      shadowOpacity: t.dark ? 0.35 : 0.06,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 2,
+    },
+    chip: {
+      alignSelf: 'flex-start',
+      backgroundColor: t.colors.chipBg,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: radius.pill,
+      marginBottom: space.md,
+      maxWidth: '100%',
+    },
+    chipText: { color: t.colors.chipText, fontWeight: '700', fontSize: 13 },
+    title: { ...font, fontSize: 26 * scale, lineHeight: Math.round(32 * scale), fontWeight: '800', color: t.colors.navy },
+    summary: {
+      ...font,
+      fontSize: 17 * scale,
+      lineHeight: Math.round(26 * scale * t.type.readingLeading),
+      color: t.colors.text,
+      marginTop: space.md,
+    },
+    footer: { flexDirection: 'row', alignItems: 'center', marginTop: space.lg, gap: space.md },
+    meta: { flex: 1, color: t.colors.textMuted, fontSize: 13 },
+    readMore: { color: t.colors.indigo, fontSize: 14, fontWeight: '600' },
+  } as const;
 });

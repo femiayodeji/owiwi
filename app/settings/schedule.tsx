@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
-import { Button, NumberStepper, Section, TimeStepper, ToggleRow, ui } from '../../src/components/ui';
+import { Button, NumberStepper, Section, TimeStepper, ToggleRow, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { saveSettings, type Settings } from '../../src/db/settings';
 import { timeToMinutes } from '../../src/lib/dates';
@@ -17,6 +17,7 @@ const REMINDER_OPTIONS: readonly DropdownOption<ReminderKind>[] = [
 
 export default function ScheduleScreen() {
   const settings = useFeed((s) => s.settings);
+  const ui = useUi();
   const refresh = useFeed((s) => s.refresh);
   const [error, setError] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<string | null>(null);

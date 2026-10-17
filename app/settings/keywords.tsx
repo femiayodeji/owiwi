@@ -1,9 +1,10 @@
 import { ScrollView, Text } from 'react-native';
 import { KeywordEditor } from '../../src/components/KeywordEditor';
-import { ui } from '../../src/components/ui';
+import { useUi } from '../../src/components/ui';
 import { space } from '../../src/lib/theme';
 
 export default function KeywordsScreen() {
+  const ui = useUi();
   return (
     <ScrollView style={ui.screen} contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
       <KeywordEditor />

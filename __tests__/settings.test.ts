@@ -27,3 +27,14 @@ describe('settings', () => {
     expect(parseLocale('fr-SN')).toEqual({ lang: 'fr', country: 'SN' });
   });
 });
+
+describe('theme', () => {
+  it('defaults to system and resolves modes', () => {
+    const { resolveTheme } = require('../src/lib/theme') as typeof import('../src/lib/theme');
+    expect(DEFAULT_SETTINGS.theme_mode).toBe('system');
+    expect(resolveTheme('system', 'dark').name).toBe('dark');
+    expect(resolveTheme('system', null).name).toBe('light');
+    expect(resolveTheme('reading', 'dark').name).toBe('reading');
+    expect(parseSettings([{ key: 'theme_mode', value: 'neon' }]).theme_mode).toBe('system');
+  });
+});

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
-import { Button, Section, ui } from '../../src/components/ui';
+import { Button, Section, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { saveSettings } from '../../src/db/settings';
 import { space } from '../../src/lib/theme';
@@ -32,6 +32,7 @@ const SOURCE_OPTIONS: readonly DropdownOption<NewsSourceId>[] = NEWS_SOURCES.map
 
 export default function SourcesScreen() {
   const settings = useFeed((s) => s.settings);
+  const ui = useUi();
   const refresh = useFeed((s) => s.refresh);
   const [locale, setLocale] = useState(settings.locale);
   const localeValid = /^[a-z]{2}-[A-Z]{2}$/.test(locale);

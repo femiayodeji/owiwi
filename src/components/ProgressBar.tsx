@@ -1,6 +1,6 @@
 // Duolingo-style rounded progress bar: springs to its new width, turns green with a pop when full.
 import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 
 interface Props {
   /** 0..1 */
@@ -24,6 +24,10 @@ interface Props {
 export function ProgressBar({ progress, complete, label, height = 14 }: Props) {
   const p = Math.max(0, Math.min(1, progress));
   const done = complete ?? p >= 1;
+  const t = useTheme();
+  const styles = useStyles();
+  // Plain strings captured by the worklet below.
+  const { indigo, success } = t.colors;
 
   const trackW = useSharedValue(0);
   const fill = useSharedValue(p);
@@ -48,7 +52,7 @@ export function ProgressBar({ progress, complete, label, height = 14 }: Props) {
     return {
       // Never narrower than a circle once started, so the rounded ends stay round.
       width: fill.value > 0.001 ? Math.max(w, height) : 0,
-      backgroundColor: interpolateColor(green.value, [0, 1], [colors.indigo, colors.success]),
+      backgroundColor: interpolateColor(green.value, [0, 1], [indigo, success]),
     };
   });
   const barStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: pop.value }, { scaleX: 1 + (pop.value - 1) * 0.15 }] }));
@@ -70,15 +74,16 @@ export function ProgressBar({ progress, complete, label, height = 14 }: Props) {
           <View style={[styles.shine, { height: Math.max(3, height * 0.28), borderRadius: height / 2, top: height * 0.2 }]} />
         </Animated.View>
       </Animated.View>
-      {label ? <Text style={[styles.label, done && { color: colors.success }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, done && styles.labelDone]}>{label}</Text> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  track: { flex: 1, backgroundColor: colors.border, overflow: 'hidden' },
+  track: { flex: 1, backgroundColor: t.colors.border, overflow: 'hidden' },
   fill: { height: '100%' },
-  shine: { position: 'absolute', left: 6, right: 6, backgroundColor: 'rgba(255,255,255,0.35)' },
-  label: { minWidth: 44, textAlign: 'right', color: colors.textMuted, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
-});
+  shine: { position: 'absolute', left: 6, right: 6, backgroundColor: t.colors.onPrimary, opacity: 0.35 },
+  labelDone: { color: t.colors.success },
+  label: { minWidth: 44, textAlign: 'right', color: t.colors.textMuted, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+}));

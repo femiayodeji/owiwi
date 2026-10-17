@@ -1,6 +1,6 @@
 // Full-screen vertical pager: one card per page, swipe up for the next.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View, type ListViewToken } from 'react-native';
+import { FlatList, RefreshControl, Text, View, type ListViewToken } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -14,7 +14,8 @@ import Animated, {
 import type { Card } from '../db/queries';
 import type { Slot } from '../llm/types';
 import { haptic } from '../lib/haptics';
-import { colors, space } from '../lib/theme';
+import { space } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import { CompletionCard } from './CompletionCard';
 import { StoryCard } from './StoryCard';
 
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function Pager({ cards, slot, streak, onReachedEnd, onIndexChange, onPullToRegenerate }: Props) {
+  const theme = useTheme();
   const [height, setHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [swiped, setSwiped] = useState(false);
@@ -85,7 +87,7 @@ export function Pager({ cards, slot, streak, onReachedEnd, onIndexChange, onPull
           maxToRenderPerBatch={2}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           onViewableItemsChanged={onViewableItemsChanged}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={onPullToRegenerate} tintColor={colors.indigo} />}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={onPullToRegenerate} tintColor={theme.colors.indigo} colors={[theme.colors.indigo]} progressBackgroundColor={theme.colors.surface} />}
         />
       ) : null}
       {height > 0 && !swiped && cards.length > 1 ? <SwipeHint /> : null}
@@ -95,6 +97,7 @@ export function Pager({ cards, slot, streak, onReachedEnd, onIndexChange, onPull
 
 /** Bouncing "Swipe up" nudge on the first card; gone after the first swipe. */
 function SwipeHint() {
+  const styles = useStyles();
   const reduced = useReducedMotion();
   const y = useSharedValue(0);
   useEffect(() => {
@@ -112,7 +115,7 @@ function SwipeHint() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   hint: { position: 'absolute', left: 0, right: 0, bottom: space.sm, alignItems: 'center' },
   hintInner: { alignItems: 'center' },
   chevron: {
@@ -120,10 +123,10 @@ const styles = StyleSheet.create({
     height: 12,
     borderTopWidth: 3,
     borderLeftWidth: 3,
-    borderColor: colors.indigo,
+    borderColor: t.colors.indigo,
     borderTopLeftRadius: 2,
     transform: [{ rotate: '45deg' }],
     marginBottom: 2,
   },
-  hintText: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-});
+  hintText: { color: t.colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+}));

@@ -1,10 +1,11 @@
 // Last page of the feed: the celebration.
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import type { Slot } from '../llm/types';
 import { haptic } from '../lib/haptics';
-import { colors, space } from '../lib/theme';
+import { space } from '../lib/theme';
+import { makeStyles } from '../lib/useTheme';
 import { Confetti } from './Confetti';
 import { Owiwi } from './Owiwi';
 import { StreakFlame } from './StreakFlame';
@@ -24,6 +25,7 @@ interface Props {
 const COUNT_UP_DELAY_MS = 650;
 
 export function CompletionCard({ height, slot, streak, active = true }: Props) {
+  const styles = useStyles();
   const reduced = useReducedMotion();
   const [burst, setBurst] = useState(0);
   const [shown, setShown] = useState(false);
@@ -77,10 +79,10 @@ export function CompletionCard({ height, slot, streak, active = true }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   page: { alignItems: 'center', justifyContent: 'center', padding: space.lg },
   flame: { marginTop: space.lg },
-  streak: { marginTop: space.sm, fontSize: 22, fontWeight: '800', color: colors.navy },
-  next: { marginTop: space.sm, fontSize: 16, color: colors.textMuted },
-  hint: { marginTop: space.xl, fontSize: 13, color: colors.textFaint },
-});
+  streak: { marginTop: space.sm, fontSize: 22, fontWeight: '800', color: t.colors.navy },
+  next: { marginTop: space.sm, fontSize: 16, color: t.colors.textMuted },
+  hint: { marginTop: space.xl, fontSize: 13, color: t.colors.textFaint },
+}));

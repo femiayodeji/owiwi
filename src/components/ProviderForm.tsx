@@ -1,11 +1,12 @@
 // Add / edit an LLM provider. The key goes straight to SecureStore and is never shown again.
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { getDb } from '../db/client';
 import { getProvider, saveProvider } from '../db/queries';
 import { newId } from '../lib/ids';
 import { getApiKey, hasApiKey, setApiKey } from '../lib/secureStore';
-import { colors, space } from '../lib/theme';
+import { space } from '../lib/theme';
+import { makeStyles, useTheme } from '../lib/useTheme';
 import {
   createProvider,
   DEFAULT_MODELS,
@@ -19,7 +20,7 @@ import {
 } from '../llm';
 import type { ProviderConfig } from '../llm/types';
 import { Dropdown, type DropdownOption } from './Dropdown';
-import { Button, Field, ui } from './ui';
+import { Button, Field, useUi } from './ui';
 
 const PRESET_OPTIONS: readonly DropdownOption<PresetId>[] = PRESETS.map((p) => ({
   value: p.id,
@@ -46,6 +47,9 @@ function presetFor(p: ProviderConfig): ProviderPreset {
 }
 
 export function ProviderForm({ providerId, onSaved }: { providerId?: string; onSaved: () => void }) {
+  const theme = useTheme();
+  const styles = useStyles();
+  const ui = useUi();
   const [id] = useState(() => providerId ?? newId());
   const initial = getPreset(DEFAULT_PRESET_ID);
   const [preset, setPreset] = useState<ProviderPreset>(initial);
@@ -192,7 +196,7 @@ export function ProviderForm({ providerId, onSaved }: { providerId?: string; onS
         hint={`Stored only on this device, in the secure keystore. Get one at ${preset.keyHint}.`}
       />
 
-      {result ? <Text style={[ui.muted, { color: result.ok ? colors.success : colors.danger, marginBottom: space.md }]}>{result.message}</Text> : null}
+      {result ? <Text style={[ui.muted, { color: result.ok ? theme.colors.success : theme.colors.danger, marginBottom: space.md }]}>{result.message}</Text> : null}
 
       <View style={{ gap: space.sm }}>
         <Button title="Test connection" variant="secondary" onPress={() => void test()} loading={testing} disabled={!valid} />
@@ -202,7 +206,7 @@ export function ProviderForm({ providerId, onSaved }: { providerId?: string; onS
   );
 }
 
-const styles = StyleSheet.create({
-  readOnly: { backgroundColor: colors.bg, color: colors.textMuted },
-  fixedUrl: { fontSize: 12, color: colors.textFaint, marginTop: -8, marginBottom: space.md },
-});
+const useStyles = makeStyles((t) => ({
+  readOnly: { backgroundColor: t.colors.surfaceAlt, color: t.colors.textMuted },
+  fixedUrl: { fontSize: 12, color: t.colors.textMuted, marginTop: -8, marginBottom: space.md },
+}));

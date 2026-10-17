@@ -73,6 +73,19 @@ Rules: use the brand artwork only. Do not redraw the owl, substitute emojis, or 
 - **Empty / failed / no digest:** owl, short explanation, and actions (Try again, Edit keywords, Open settings, Generate).
 - All article and model text is rendered as plain `Text`.
 
+## Themes
+
+Settings → Appearance (also in the feed's ⋯ menu) offers four modes, stored as the `theme_mode` setting:
+
+| Mode | Look |
+|---|---|
+| System (default) | Follows the phone's light or dark setting (`userInterfaceStyle: 'automatic'` plus `expo-system-ui`) |
+| Light | Brand cream background, white cards, indigo accent |
+| Dark | Deep navy background, lifted indigo, light text |
+| Reading | Warm paper tones, serif story text, about 8% larger, with roomier line height |
+
+Palettes and typography live in `src/lib/theme.ts` (`THEMES`). Components read them with `useTheme()` or `makeStyles()` from `src/lib/useTheme.ts`, and screens use `useUi()` for shared text styles. Never hard-code colors in components. The one exception is the brand sparkle colors in `Confetti.tsx`.
+
 ## Brand assets
 
 All art is cut from the brand sheet (`docs/design/owiwi-brand-sheet.png.png`) by `scripts/extract-brand-art.py`. Nothing is redrawn. The script flood-fills each panel's pastel background from the edges, un-mixes anti-aliased edge pixels from that background so there's no halo, trims, and exports the files.

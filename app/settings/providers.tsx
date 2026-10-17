@@ -1,19 +1,22 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { PressScale } from '../../src/components/PressScale';
 import { ConfirmDialog } from '../../src/components/Sheet';
-import { Button, ui } from '../../src/components/ui';
+import { Button, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { deleteProvider, listProviders, setActiveProvider } from '../../src/db/queries';
 import { haptic } from '../../src/lib/haptics';
 import { deleteApiKey } from '../../src/lib/secureStore';
-import { colors, radius, space } from '../../src/lib/theme';
+import { radius, space } from '../../src/lib/theme';
+import { makeStyles } from '../../src/lib/useTheme';
 import type { ProviderConfig } from '../../src/llm/types';
 
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [toDelete, setToDelete] = useState<ProviderConfig | null>(null);
+  const ui = useUi();
+  const styles = useStyles();
 
   const reload = useCallback(async () => setProviders(await listProviders(await getDb())), []);
   useFocusEffect(
@@ -63,7 +66,7 @@ export default function ProvidersScreen() {
               <Text style={styles.link}>Edit</Text>
             </PressScale>
             <PressScale onPress={() => setToDelete(p)} hitSlop={8} scaleTo={0.9} accessibilityRole="button" accessibilityLabel={`Delete ${p.label}`}>
-              <Text style={[styles.link, { color: colors.danger }]}>Delete</Text>
+              <Text style={[styles.link, styles.danger]}>Delete</Text>
             </PressScale>
           </View>
         </View>
@@ -85,7 +88,7 @@ export default function ProvidersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   item: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -101,4 +104,5 @@ const styles = StyleSheet.create({
   badge: { fontSize: 11, color: colors.indigo, fontWeight: '800' },
   actions: { justifyContent: 'space-between', alignItems: 'flex-end' },
   link: { color: colors.indigo, fontWeight: '600' },
-});
+  danger: { color: colors.danger },
+}));

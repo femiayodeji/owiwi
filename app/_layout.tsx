@@ -4,19 +4,40 @@ import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getDb } from '../src/db/client';
-import { colors } from '../src/lib/theme';
+import { useTheme } from '../src/lib/useTheme';
 import { configureNotifications, syncReminders, useNotificationDeepLink } from '../src/notifications';
 import { useFeed } from '../src/store/feed';
-import { Button, ui } from '../src/components/ui';
+import { Button, useUi } from '../src/components/ui';
 import { ToastHost } from '../src/components/Toast';
 
 void SplashScreen.preventAutoHideAsync();
 
+/**
+ * Paints the native root view (visible behind screens during transitions and keyboard animations).
+ * Loaded lazily: the module's native side may be missing from an older dev build, and
+ * requireNativeModule throws at import time. Any failure is silent.
+ */
+async function setRootBackground(color: string): Promise<void> {
+  try {
+    const SystemUI = await import('expo-system-ui');
+    await SystemUI.setBackgroundColorAsync(color);
+  } catch {
+    // Native module not in this build; the themed screens still cover the root view.
+  }
+}
+
 export default function RootLayout() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const refresh = useFeed((s) => s.refresh);
+  const theme = useTheme();
+  const ui = useUi();
+  const { colors } = theme;
 
   useNotificationDeepLink();
+
+  useEffect(() => {
+    void setRootBackground(colors.bg);
+  }, [colors.bg]);
 
   const boot = async () => {
     setState('loading');
@@ -51,6 +72,7 @@ export default function RootLayout() {
         <Text style={ui.h2}>Owiwi couldn't start</Text>
         <Text style={ui.muted}>Local storage failed to open. Try again, or restart the app.</Text>
         <Button title="Try again" onPress={() => void boot()} />
+        <StatusBar style={theme.dark ? 'light' : 'dark'} />
       </View>
     );
   }
@@ -58,7 +80,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },

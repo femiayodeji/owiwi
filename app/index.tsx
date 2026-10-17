@@ -1,6 +1,6 @@
 // The feed: today's digest for the viewed slot as a full-screen vertical pager.
 import { useEffect, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -20,10 +20,13 @@ import { ProgressBar } from '../src/components/ProgressBar';
 import { ActionSheet, ConfirmDialog, type SheetAction } from '../src/components/Sheet';
 import { SlotSwitcher } from '../src/components/SlotSwitcher';
 import { StreakFlame } from '../src/components/StreakFlame';
-import { Button, ui } from '../src/components/ui';
+import { Button, useUi } from '../src/components/ui';
 import { STEP_LABEL, type GenerationStep } from '../src/digest/generate';
 import { isLateNight, SLOT_LABEL } from '../src/digest/slot';
-import { colors, radius, space } from '../src/lib/theme';
+import { getDb } from '../src/db/client';
+import { saveSettings } from '../src/db/settings';
+import { radius, space, THEME_MODE_OPTIONS, type ThemeMode } from '../src/lib/theme';
+import { makeStyles } from '../src/lib/useTheme';
 import type { Slot } from '../src/llm/types';
 import { useFeed, type SlotState } from '../src/store/feed';
 
@@ -34,6 +37,9 @@ export default function Feed() {
   const [index, setIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const ui = useUi();
+  const styles = useStyles();
 
   if (settings.onboarded !== '1') return <Redirect href="/onboarding" />;
 
@@ -54,11 +60,25 @@ export default function Feed() {
           },
         ]
       : []),
+    {
+      key: 'appearance',
+      label: `Appearance: ${themeLabel(settings.theme_mode)}`,
+      icon: '◐',
+      onPress: () => setAppearanceOpen(true),
+    },
     { key: 'keywords', label: 'Keywords', icon: '#', onPress: () => router.push('/settings/keywords') },
     { key: 'providers', label: 'LLM provider', icon: '✦', onPress: () => router.push('/settings/providers') },
     { key: 'schedule', label: 'Schedule & reminders', icon: '⏰', onPress: () => router.push('/settings/schedule') },
     { key: 'settings', label: 'All settings', icon: '⚙', onPress: () => router.push('/settings') },
   ];
+
+  const appearanceActions: SheetAction[] = THEME_MODE_OPTIONS.map((o) => ({
+    key: o.value,
+    label: o.label,
+    description: o.description,
+    icon: o.value === settings.theme_mode ? '✓' : ' ',
+    onPress: () => void setThemeMode(o.value),
+  }));
 
   return (
     <SafeAreaView style={ui.screen} edges={['top', 'bottom']}>
@@ -110,6 +130,7 @@ export default function Feed() {
       </View>
 
       <ActionSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Owiwi" actions={menuActions} />
+      <ActionSheet visible={appearanceOpen} onClose={() => setAppearanceOpen(false)} title="Appearance" actions={appearanceActions} />
       <ConfirmDialog
         visible={confirmOpen}
         title="Regenerate this digest?"
@@ -126,6 +147,16 @@ export default function Feed() {
   );
 }
 
+function themeLabel(mode: ThemeMode): string {
+  return THEME_MODE_OPTIONS.find((o) => o.value === mode)?.label ?? mode;
+}
+
+async function setThemeMode(theme_mode: ThemeMode): Promise<void> {
+  if (theme_mode === useFeed.getState().settings.theme_mode) return;
+  await saveSettings(await getDb(), { theme_mode });
+  await useFeed.getState().reloadSettings();
+}
+
 function SlotBody(props: {
   slot: Slot;
   isActive: boolean;
@@ -138,6 +169,8 @@ function SlotBody(props: {
   onReachedEnd: () => void;
 }) {
   const { slot, isActive, state } = props;
+  const ui = useUi();
+  const styles = useStyles();
 
   if (state.status === 'loading' || state.status === 'generating') {
     const current = state.step ? STEPS.indexOf(state.step) : -1;
@@ -230,11 +263,13 @@ function SlotBody(props: {
 }
 
 function Centered({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   return <View style={styles.centered}>{children}</View>;
 }
 
 /** Fades content up in sequence. */
 function Stagger({ i, style, children }: { i: number; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <Animated.View
       entering={FadeInDown.delay(i * 90)
@@ -249,6 +284,7 @@ function Stagger({ i, style, children }: { i: number; style?: StyleProp<ViewStyl
 
 /** Generation step: the current one pulses, finished ones pop a check mark in. */
 function StepRow({ label, state }: { label: string; state: 'done' | 'now' | 'todo' }) {
+  const styles = useStyles();
   const reduced = useReducedMotion();
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -278,7 +314,7 @@ function StepRow({ label, state }: { label: string; state: 'done' | 'now' | 'tod
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.md, paddingTop: space.sm, gap: space.sm },
   streak: {
     backgroundColor: colors.surface,
@@ -302,10 +338,10 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepIcon: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
   check: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
-  checkText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  checkText: { color: colors.onPrimary, fontSize: 13, fontWeight: '900' },
   nowDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.indigo },
   todoDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.border },
   step: { color: colors.textFaint, fontSize: 15 },
   stepNow: { color: colors.navy, fontWeight: '700' },
   stepDone: { color: colors.success },
-});
+}));
