@@ -3,9 +3,10 @@ import { Platform } from 'react-native';
 import { getDb } from '../db/client';
 import { isDayCompleted } from '../db/queries';
 import { loadSettings } from '../db/settings';
+import { coalesce, withTimeout } from '../lib/async';
 import { localDate } from '../lib/dates';
 import { pickCopy, type ReminderKind } from './copy';
-import { planReminders, REMINDER_PREFIX, reminderId } from './plan';
+import { isTopUpDue, planReminders, REMINDER_PREFIX, reminderId } from './plan';
 
 // Android channel sound is fixed when the channel is created, so a sound change
 // needs a new channel id. 'reminders' was the silent-default v1 channel.
@@ -114,29 +115,44 @@ async function doSync(): Promise<void> {
   }
 }
 
-let inFlight: Promise<void> | null = null;
-let rerun = false;
+// A stuck native call must not hold the sync lock forever.
+const SYNC_TIMEOUT_MS = 20000;
+let lastSync: { at: number; date: string } | null = null;
 
-/** Top-up: cancel and reschedule the next days of reminders. Safe to call often; never throws. */
-export function syncReminders(): Promise<void> {
-  if (inFlight) {
-    // A change arrived mid-sync: run once more after the current pass.
-    rerun = true;
-    return inFlight;
+const runSync = coalesce(async () => {
+  try {
+    await withTimeout(doSync(), SYNC_TIMEOUT_MS, 'reminder sync');
+    const now = new Date();
+    lastSync = { at: now.getTime(), date: localDate(now) };
+  } catch (e) {
+    warn('sync', e);
   }
-  inFlight = (async () => {
-    try {
-      do {
-        rerun = false;
-        await doSync();
-      } while (rerun);
-    } catch (e) {
-      warn('sync', e);
-    } finally {
-      inFlight = null;
-    }
-  })();
-  return inFlight;
+});
+
+/**
+ * Cancel and reschedule the next days of reminders. Overlapping calls share one
+ * run (plus one trailing rerun if something changed mid-sync). Never throws.
+ * Use after settings changes.
+ */
+export function syncReminders(): Promise<void> {
+  return runSync();
+}
+
+let topUp: Promise<void> | null = null;
+
+/**
+ * Foreground top-up: like syncReminders(), but skipped if a sync already ran
+ * recently today. AppState flips to 'active' after every permission dialog and
+ * in-app browser visit, and each sync is dozens of native calls.
+ */
+export function topUpReminders(): Promise<void> {
+  // Boot and the first AppState 'active' both ask: join, don't queue a rerun.
+  if (topUp) return topUp;
+  if (!isTopUpDue(lastSync, new Date())) return Promise.resolve();
+  topUp = runSync().finally(() => {
+    topUp = null;
+  });
+  return topUp;
 }
 
 /** Call when the user completes the day so the streak-saver nudge doesn't fire. */

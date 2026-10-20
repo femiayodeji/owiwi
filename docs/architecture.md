@@ -8,7 +8,7 @@ Owiwi is a single Expo app with no server. Screens in `app/` are thin; logic liv
 
 | File | Purpose |
 |---|---|
-| `app/_layout.tsx` | Root stack. Boots the app (open DB, configure notifications, `refresh()`, `syncReminders()`), subscribes to `AppState`, mounts the notification deep-link hook, shows a "couldn't start" screen if the DB fails to open. |
+| `app/_layout.tsx` | Root stack. Boots the app (open DB, `refresh()`; notifications are configured and topped up in the background), subscribes to `AppState`, mounts the notification deep-link hook once the Stack is up, shows a "couldn't start" screen if boot fails or times out. |
 | `app/index.tsx` | The feed: top bar (streak, slot tabs, menu), progress, and per-slot body (thinking, pager, empty, failed, or "Generate"). Redirects to onboarding until `onboarded = '1'`. |
 | `app/onboarding.tsx` | Five-step first run: welcome, keywords, times, provider, notifications. |
 | `app/settings/index.tsx` | Settings home with summaries. |
@@ -46,10 +46,20 @@ flowchart TD
   H -- ready --> I[show cards, no network]
   H -- none or failed, first try this session --> J[generate active slot]
   H -- generating / other --> K[show state]
-  A --> L[syncReminders: cancel + reschedule next 10 days]
+  A --> L[topUpReminders: cancel + reschedule next 10 days, at most every 15 min]
 ```
 
 `app/_layout.tsx` runs `refresh()` once at boot and again on every `AppState` change to `active`. That single path handles the daily wipe, midnight rollover (the store detects that `today` changed and resets the viewed slot and `justCompleted`), a change of active slot, and topping up reminders. `refresh()` does not overwrite a slot that this process is currently generating.
+
+### Boot and the splash screen
+
+The native splash stays up until `boot()` in `app/_layout.tsx` settles, so nothing slow may sit on that path:
+
+1. `getDb()` (open + migrate) and `refresh()` (wipe + read from SQLite) are the only awaited steps, each with an 8 s deadline (`withTimeout`, `src/lib/async.ts`). `refresh()` never awaits generation; it only starts it.
+2. `configureNotifications()` and `topUpReminders()` run in the background, chained so the Android channel exists before scheduling.
+3. The splash is hidden in `finally`, and a 10 s safety timer hides it regardless and shows the retry screen if the first boot is still loading.
+4. Concurrency: `refresh()` and the reminder sync are wrapped with `coalesce()` (one run in flight, overlapping calls collapse into one trailing rerun), because a cold start from a notification fires boot and several `AppState` changes at once. `topUpReminders()` (used on boot and foreground) also skips if a sync ran in the last 15 minutes of the same day; settings screens call `syncReminders()` directly.
+5. The notification deep link (`useNotificationDeepLink(navReady)`) only navigates after the Stack is mounted, remembers handled responses at module scope and clears the native last response. Before this, calling `router.replace('/')` while the root layout rendered its loading view made expo-router replace the root layout route itself; the remounted layout replayed the same (still stored) response and looped, pinning the JS thread behind the splash.
 
 Auto-generation is attempted at most once per `(date, slot)` per process (`autoAttempted` in `src/store/feed.ts`). After a failure the reader sees retry UI rather than a loop.
 
@@ -133,5 +143,5 @@ Settings screens write through `saveSettings()` and then call `refresh()` (and `
 - `friendlyMessage()` / `toAppError()` turn anything else into a safe message: `AbortError` -> timeout, `TypeError` (fetch failure) -> network, otherwise unknown.
 - Messages never include the API key, request bodies or provider responses. `src/llm/adapters/http.ts` builds errors only from the status code; a test asserts the key does not leak.
 - Notification failures are logged with `console.warn` (short message only) and never thrown.
-- If the database fails to open at boot, `app/_layout.tsx` shows a retry screen.
+- If the database fails to open or the first load times out at boot, `app/_layout.tsx` hides the splash and shows a retry screen.
 - RSS and LLM text is rendered only as React Native `Text`, never as HTML.

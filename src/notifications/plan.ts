@@ -48,3 +48,19 @@ export function planReminders({ now, settings, doneToday, days = 10 }: PlanInput
 
   return out.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());
 }
+
+/** Minimum gap between foreground reminder top-ups on the same day. */
+export const TOP_UP_INTERVAL_MS = 15 * 60 * 1000;
+
+/** Pure: whether a foreground top-up should reschedule, given the last successful sync. */
+export function isTopUpDue(
+  last: { at: number; date: string } | null,
+  now: Date,
+  minIntervalMs: number = TOP_UP_INTERVAL_MS,
+): boolean {
+  if (!last) return true;
+  if (last.date !== localDate(now)) return true;
+  const elapsed = now.getTime() - last.at;
+  // A clock moved backwards also counts as due.
+  return elapsed < 0 || elapsed >= minIntervalMs;
+}
