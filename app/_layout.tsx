@@ -98,6 +98,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings/provider" options={{ title: 'Provider' }} />
         <Stack.Screen name="settings/schedule" options={{ title: 'Schedule & reminders' }} />
         <Stack.Screen name="settings/sources" options={{ title: 'News source' }} />
+        <Stack.Screen name="bookmarks" options={{ title: 'Bookmarks' }} />
       </Stack>
       <ToastHost />
     </SafeAreaProvider>

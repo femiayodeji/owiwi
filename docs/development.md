@@ -37,7 +37,7 @@ See [architecture.md](architecture.md) for what each module does.
 ## Conventions
 
 - TypeScript `strict`, no `any`.
-- Pure logic lives in plain functions with unit tests. Keep the following free of Expo and React Native imports so jest can run them directly: `src/news/*`, `src/llm/*`, `src/streak/*`, `src/notifications/copy.ts`, `src/notifications/plan.ts`, `src/digest/slot.ts`, `src/digest/guard.ts`, `src/digest/retention.ts`, `src/db/migrations.ts`, and the parsing in `src/db/settings.ts`. Code that needs a database takes a small interface (`MigrationDb`, `WipeDb`) or the `Db` type so tests can pass a fake.
+- Pure logic lives in plain functions with unit tests. Keep the following free of Expo and React Native imports so jest can run them directly: `src/news/*`, `src/llm/*`, `src/streak/*`, `src/notifications/copy.ts`, `src/notifications/plan.ts`, `src/digest/slot.ts`, `src/digest/guard.ts`, `src/digest/retention.ts`, `src/lib/share.ts`, `src/lib/bookmarks.ts`, `src/db/migrations.ts`, and the parsing in `src/db/settings.ts`. Code that needs a database takes a small interface (`MigrationDb`, `WipeDb`) or the `Db` type so tests can pass a fake.
 - Screens stay thin; logic goes in `src/`.
 - User-facing errors are `AppError` with a friendly, actionable message. Never include the API key, request bodies or raw provider responses in errors or logs.
 - API keys are only read and written through `src/lib/secureStore.ts`.
@@ -53,6 +53,7 @@ See [architecture.md](architecture.md) for what each module does.
 |---|---|
 | `__tests__/dates.test.ts` | `localDate`, `addDays` across month/year, `parseTime`, `atTime`, `relativeTime` |
 | `__tests__/digest.test.ts` | `activeSlot`, `otherSlot`, `isLateNight`, `decideGeneration` (cached, busy, stale, failed), `wipeStale` |
+| `__tests__/share-bookmarks.test.ts` | `formatShareMessage`, `toBookmark`, `sortBookmarks`, `withUrl`, bookmarks table is unique per url and has no FK |
 | `__tests__/migrations.test.ts` | `runMigrations` applies pending migrations in order, bumps `user_version`, skips applied ones |
 | `__tests__/settings.test.ts` | Settings defaults, parsing with fallback on invalid values, `parseLocale` |
 | `__tests__/news-parse.test.ts` | `parseFeed` (Google RSS, Bing, CDATA, entities, Atom, junk), `stripHtml`, `truncate`, `toIsoDate`, Google URL and title/snippet shaping, `unwrapBingLink`, `matchesKeyword` |

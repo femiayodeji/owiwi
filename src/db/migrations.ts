@@ -71,6 +71,21 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `,
+  // bookmarks: saved stories. Copies card content and has no foreign key, so it
+  // survives the daily wipe and any removal of read cards. One row per url.
+  `
+  CREATE TABLE bookmarks (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    topic TEXT,
+    source TEXT,
+    published_at TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX bookmarks_created ON bookmarks(created_at);
+  `,
 ];
 
 export async function runMigrations(db: MigrationDb, migrations: readonly string[] = MIGRATIONS): Promise<number> {

@@ -2,7 +2,7 @@
 
 All persistent data is on the device:
 
-- **SQLite** (`expo-sqlite`, database file `owiwi.db`): keywords, provider config, digests, articles, cards, streak days, settings.
+- **SQLite** (`expo-sqlite`, database file `owiwi.db`): keywords, provider config, digests, articles, cards, streak days, bookmarks, settings.
 - **SecureStore** (`expo-secure-store`): API keys only.
 
 ## Opening the database
@@ -19,9 +19,9 @@ All persistent data is on the device:
 BEGIN; <migration sql>; PRAGMA user_version = <n>; COMMIT;
 ```
 
-so each migration and its version bump are applied atomically. The current schema version is 1. Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
+so each migration and its version bump are applied atomically. The current schema version is 2. Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
 
-## Schema (version 1)
+## Schema (version 2)
 
 ```sql
 CREATE TABLE keywords (
@@ -85,7 +85,22 @@ CREATE TABLE streak_days (
 );
 
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+-- migration 2
+CREATE TABLE bookmarks (         -- saved stories, a self-contained copy of the card
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL UNIQUE,      -- one bookmark per story
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  topic TEXT,
+  source TEXT,
+  published_at TEXT,
+  created_at INTEGER NOT NULL    -- when it was saved; list is newest first
+);
+CREATE INDEX bookmarks_created ON bookmarks(created_at);
 ```
+
+`bookmarks` deliberately has no foreign key to `cards` or `digests`: it copies the card's content so a saved story survives the daily wipe (which cascades cards) and any removal of read cards. Queries: `listBookmarks`, `listBookmarkedUrls`, `isBookmarked`, `addBookmark`, `saveBookmark` (used by undo, keeps the original id and `created_at`), `removeBookmark` in `src/db/queries.ts`. The `useBookmarks` zustand store (`src/store/bookmarks.ts`) keeps the set of bookmarked urls in memory for the cards.
 
 IDs are UUIDs from `expo-crypto` (`newId()` in `src/lib/ids.ts`). Timestamps (`created_at`, `completed_at`) are epoch milliseconds. `published_at` is an ISO 8601 string or null.
 
@@ -98,11 +113,12 @@ IDs are UUIDs from `expo-crypto` (`newId()` in `src/lib/ids.ts`). Timestamps (`c
 | One digest per `(date, slot)` | `UNIQUE (date, slot)`; `beginDigest` reuses the existing row |
 | Articles and cards written atomically with `status = 'ready'` | `completeDigest` (single transaction) |
 | Streak day recorded once per date | `recordStreakDay` uses `INSERT OR IGNORE` |
+| One bookmark per story | `url UNIQUE`; `saveBookmark` uses `INSERT OR IGNORE` |
 | Keyword reorder is atomic | `reorderKeywords` (transaction) |
 
 ## Retention
 
-`wipeStale(db, today)` in `src/digest/retention.ts` runs `DELETE FROM digests WHERE date < ?`. Articles and cards go with their digest through `ON DELETE CASCADE`. `keywords`, `providers`, `settings` and `streak_days` are never touched. It is called from `useFeed.refresh()` (launch and every foreground) and at the start of `generateDigest()`.
+`wipeStale(db, today)` in `src/digest/retention.ts` runs `DELETE FROM digests WHERE date < ?`. Articles and cards go with their digest through `ON DELETE CASCADE`. `keywords`, `providers`, `settings`, `streak_days` and `bookmarks` are never touched. It is called from `useFeed.refresh()` (launch and every foreground) and at the start of `generateDigest()`.
 
 ## Settings
 

@@ -36,6 +36,7 @@ The feed is the product. "Read more" exists but is secondary.
 - Cards are built only from the fetched articles. Any card whose link is not one of the fetched articles is discarded.
 - If no articles are found at all, an empty state is shown and no LLM call is made.
 - If some keywords fail to fetch, the digest is built from the rest and the feed lists which keywords could not be reached.
+- Each card also has secondary **Save** (bookmark toggle) and **Share** actions. Share opens the system share sheet with the title, summary, link and "via Owiwi". Saved stories appear on the **Bookmarks** screen (feed menu and Settings), newest first, with Read more, Share and Remove (with Undo). Bookmarks are copies, so they outlive the daily wipe.
 - **Regenerate** (feed menu or pull down on the cards) rebuilds the current slot's digest. It asks for confirmation first because it uses the reader's tokens. If regeneration fails, the previous cards are kept.
 - Changing keywords does not invalidate today's digest. The reader can regenerate instead.
 
@@ -62,7 +63,7 @@ Limits: about 15 items per keyword and 60 articles in total per digest, shared f
 
 - Today's morning and evening digests are kept. Everything dated before today is deleted, with its cards and articles.
 - The wipe runs on app launch, whenever the app returns to the foreground, and before any generation. This also covers midnight passing while the app is open.
-- Keywords, providers, settings and streak history are never wiped.
+- Keywords, providers, settings, streak history and bookmarks are never wiped.
 
 ## Streaks
 
