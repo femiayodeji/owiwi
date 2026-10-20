@@ -1,17 +1,17 @@
 // Share-as-image: renders a story as a 4:5 card in the current theme, off screen,
 // and captures it to a PNG. <ShareCardHost /> is mounted once in app/_layout.tsx;
 // call renderShareImage() from anywhere.
-import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Image, PixelRatio, Text, View } from "react-native";
-import { captureRef } from "react-native-view-shot";
-import { create } from "zustand";
-import type { BookmarkSource } from "../lib/bookmarks";
-import { relativeTime } from "../lib/dates";
-import { shareTitleSize } from "../lib/share";
-import { radius, space } from "../lib/theme";
-import { makeStyles } from "../lib/useTheme";
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { Image, PixelRatio, Text, View } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
+import { create } from 'zustand';
+import type { BookmarkSource } from '../lib/bookmarks';
+import { relativeTime } from '../lib/dates';
+import { shareTitleSize } from '../lib/share';
+import { radius, space } from '../lib/theme';
+import { makeStyles } from '../lib/useTheme';
 
-const HEAD = require("../../assets/owiwi/notification-head.png");
+const HEAD = require('../../assets/owiwi/notification-head.png');
 
 // Designed at 360x450 dp and scaled up inside a frame that is exactly 1080x1350 px on
 // this screen, so the 4:5 image is equally sharp on every device density.
@@ -39,12 +39,11 @@ export function renderShareImage(story: BookmarkSource): Promise<string> {
     const id = nextId++;
     const done = () => {
       clearTimeout(timer);
-      if (useShareCard.getState().job?.id === id)
-        useShareCard.setState({ job: null });
+      if (useShareCard.getState().job?.id === id) useShareCard.setState({ job: null });
     };
     const timer = setTimeout(() => {
       done();
-      reject(new Error("Share image timed out"));
+      reject(new Error('Share image timed out'));
     }, TIMEOUT_MS);
     useShareCard.setState({
       job: {
@@ -74,9 +73,7 @@ function ShareCardCapture({ job }: { job: Job }) {
   const [laidOut, setLaidOut] = useState(false);
   const [headReady, setHeadReady] = useState(false);
   const { story } = job;
-  const meta = [story.source, relativeTime(story.publishedAt)]
-    .filter(Boolean)
-    .join(" · ");
+  const meta = [story.source, relativeTime(story.publishedAt)].filter(Boolean).join(' · ');
   const titleSize = shareTitleSize(story.title);
 
   // Capture once the card is laid out and the owl head has loaded (or failed to).
@@ -85,15 +82,13 @@ function ShareCardCapture({ job }: { job: Job }) {
     const frame = requestAnimationFrame(() => {
       if (!ref.current) return;
       captureRef(ref.current, {
-        format: "png",
-        result: "tmpfile",
+        format: 'png',
+        result: 'tmpfile',
         width: OUT_W,
         height: OUT_H,
       })
         .then(job.resolve)
-        .catch((e: unknown) =>
-          job.reject(e instanceof Error ? e : new Error(String(e))),
-        );
+        .catch((e: unknown) => job.reject(e instanceof Error ? e : new Error(String(e))));
     });
     return () => cancelAnimationFrame(frame);
   }, [laidOut, headReady, job]);
@@ -106,21 +101,12 @@ function ShareCardCapture({ job }: { job: Job }) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View
-        ref={ref}
-        collapsable={false}
-        style={styles.frame}
-        onLayout={() => setLaidOut(true)}
-      >
+      <View ref={ref} collapsable={false} style={styles.frame} onLayout={() => setLaidOut(true)}>
         <View style={styles.canvas}>
           <View style={styles.card}>
             {story.topic ? (
               <View style={styles.chip}>
-                <Text
-                  allowFontScaling={false}
-                  style={styles.chipText}
-                  numberOfLines={1}
-                >
+                <Text allowFontScaling={false} style={styles.chipText} numberOfLines={1}>
                   {story.topic}
                 </Text>
               </View>
@@ -139,28 +125,16 @@ function ShareCardCapture({ job }: { job: Job }) {
             >
               {story.title}
             </Text>
-            <Text
-              allowFontScaling={false}
-              style={styles.summary}
-              numberOfLines={7}
-            >
+            <Text allowFontScaling={false} style={styles.summary} numberOfLines={7}>
               {story.summary}
             </Text>
             <View style={styles.spacer} />
             <View style={styles.footer}>
-              <Text
-                allowFontScaling={false}
-                style={styles.meta}
-                numberOfLines={1}
-              >
+              <Text allowFontScaling={false} style={styles.meta} numberOfLines={1}>
                 {meta}
               </Text>
               <View style={styles.brand}>
-                <Image
-                  source={HEAD}
-                  style={styles.head}
-                  onLoadEnd={() => setHeadReady(true)}
-                />
+                <Image source={HEAD} style={styles.head} onLoadEnd={() => setHeadReady(true)} />
                 <Text allowFontScaling={false} style={styles.via}>
                   via Owiwi
                 </Text>
@@ -177,11 +151,11 @@ const useStyles = makeStyles((t) => {
   const font = t.type.readingFont ? { fontFamily: t.type.readingFont } : {};
   const scale = t.type.readingScale;
   return {
-    offscreen: { position: "absolute", left: -10000, top: 0 },
+    offscreen: { position: 'absolute', left: -10000, top: 0 },
     frame: {
       width: OUT_W / ratio,
       height: OUT_H / ratio,
-      overflow: "hidden",
+      overflow: 'hidden',
       backgroundColor: t.colors.bg,
     },
     canvas: {
@@ -189,7 +163,7 @@ const useStyles = makeStyles((t) => {
       height: CARD_H,
       padding: space.md,
       transform: [{ scale: SCALE }],
-      transformOrigin: "top left",
+      transformOrigin: 'top left',
     },
     card: {
       flex: 1,
@@ -202,16 +176,16 @@ const useStyles = makeStyles((t) => {
       borderBottomColor: t.colors.borderStrong,
     },
     chip: {
-      alignSelf: "flex-start",
+      alignSelf: 'flex-start',
       backgroundColor: t.colors.chipBg,
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: radius.pill,
       marginBottom: space.sm,
-      maxWidth: "100%",
+      maxWidth: '100%',
     },
-    chipText: { color: t.colors.chipText, fontWeight: "700", fontSize: 11 },
-    title: { ...font, fontWeight: "800", color: t.colors.navy },
+    chipText: { color: t.colors.chipText, fontWeight: '700', fontSize: 11 },
+    title: { ...font, fontWeight: '800', color: t.colors.navy },
     summary: {
       ...font,
       fontSize: 14 * scale,
@@ -221,16 +195,16 @@ const useStyles = makeStyles((t) => {
     },
     spacer: { flex: 1 },
     footer: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: space.sm,
       borderTopWidth: 1,
       borderTopColor: t.colors.border,
       paddingTop: space.sm,
     },
     meta: { flex: 1, color: t.colors.textMuted, fontSize: 11 },
-    brand: { flexDirection: "row", alignItems: "center", gap: 6 },
+    brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     head: { width: 22, height: 22 },
-    via: { color: t.colors.indigo, fontWeight: "800", fontSize: 12 },
+    via: { color: t.colors.indigo, fontWeight: '800', fontSize: 12 },
   } as const;
 });
