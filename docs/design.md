@@ -93,7 +93,8 @@ All art is cut from the brand sheet (`docs/design/owiwi-brand-sheet.png.png`) by
 | Asset | Path | How it's made |
 |---|---|---|
 | Mascot states | `assets/owiwi/{idle,happy,thinking,celebrate,sad,sleepy}.png` plus `@2x`/`@3x` | Cut from the six state panels. 160 px base. |
-| Android notification icon | `assets/owiwi/notification-icon.png` | Head of the idle owl as a 96x96 white silhouette. Eye whites are transparent so the face reads. |
+| Android notification small icon | `assets/owiwi/notification-icon.png` | Head of the Idle owl (cut above the eye line plus a rounded jaw under the face disc) as a 96x96 pure-white silhouette. The cream face disc is transparent and the pupils and beak stay white, so the owl face reads at status-bar size. |
+| Android notification large icon | `assets/owiwi/notification-head.png` | The same head in full colour, 256 px, transparent. Set as the expo-notifications `largeIcon`, so it shows beside every notification's text. |
 | App icon | `assets/icon.png` | The sheet's app icon owl (reading) on navy `#222B4D`, 1024 px. |
 | Adaptive icon | `assets/android-icon-foreground.png`, `-background.png`, `-monochrome.png` | Owl inside the 66% safe zone, solid navy background, and a white silhouette for themed icons. |
 | Splash | `assets/splash-icon.png` | Owl on transparent, shown on cream `#F7F5F0` through the `expo-splash-screen` plugin. |

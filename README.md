@@ -40,6 +40,10 @@ npm test
 npm run typecheck
 ```
 
+## Credits
+
+Made by [oluwainstincts](https://femiayodeji.github.io/).
+
 ## Documentation
 
 See [docs/](docs/README.md): specification, architecture, data model, LLM providers, design, setup and development.

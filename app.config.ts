@@ -10,6 +10,10 @@ const OWIWI_CREAM = '#F7F5F0';
 // white-on-transparent silhouette of the Owiwi head (96x96). Omitted if missing.
 const NOTIFICATION_ICON = './assets/owiwi/notification-icon.png';
 const hasNotificationIcon = fs.existsSync(path.join(__dirname, NOTIFICATION_ICON));
+// Android large icon: the full-colour Owiwi head shown beside the text of every
+// notification (local ones included). Read from the manifest, so no per-notification code.
+const NOTIFICATION_LARGE_ICON = './assets/owiwi/notification-head.png';
+const hasNotificationLargeIcon = fs.existsSync(path.join(__dirname, NOTIFICATION_LARGE_ICON));
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -46,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         color: OWIWI_INDIGO,
         sounds: ['./assets/sounds/owiwi_chime.wav'],
         ...(hasNotificationIcon ? { icon: NOTIFICATION_ICON } : {}),
+        ...(hasNotificationLargeIcon ? { largeIcon: NOTIFICATION_LARGE_ICON } : {}),
       },
     ],
   ],
