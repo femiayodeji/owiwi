@@ -106,6 +106,16 @@ while true; do
 
   # A Metro busy bundling can miss one health check; restart only after ~15s of failures.
   if metro_up; then metro_fails=0; else metro_fails=$((metro_fails + 1)); fi
-  if [ "${metro_fails:-0}" -ge 3 ]; then say "METRO down, restarting"; metro_fails=0; start_metro; fi
+  if [ "${metro_fails:-0}" -ge 3 ]; then
+    metro_fails=0
+    if port_bound; then
+      # Still listening, just slow (e.g. a Gradle build hogging the CPU): say so once.
+      [ -z "${metro_slow:-}" ] && { metro_slow=1; say "METRO slow to answer (port still bound), leaving it running"; }
+    else
+      say "METRO down, restarting"; start_metro
+    fi
+  elif [ "${metro_fails:-0}" -eq 0 ] && [ -n "${metro_slow:-}" ]; then
+    metro_slow=; say "METRO responsive again"
+  fi
   sleep 2
 done
