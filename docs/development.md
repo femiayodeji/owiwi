@@ -10,7 +10,7 @@
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `expo lint`. No ESLint config or ESLint dependency is set up yet; the first run will offer to install and configure one. |
 
-Before committing, run `npm test` and `npm run typecheck`. Both pass at the time of writing (13 suites, 97 tests).
+Before committing, run `npm test` and `npm run typecheck`. Both pass at the time of writing (17 suites, 138 tests).
 
 ## Project structure
 
@@ -99,6 +99,32 @@ Only needed for APIs that are not OpenAI-compatible (for those, add a preset; se
 3. Add a case to `createProvider()` in `src/llm/index.ts` (the `switch` is exhaustive, so `tsc` will flag a missing case).
 4. Add a preset in `src/llm/presets.ts` and a verified default model in `src/llm/defaultModels.ts`.
 5. Add request-shape and error-mapping tests to `__tests__/llm-adapters.test.ts`, including the key-leak check.
+
+## Testing on an Android phone (WSL)
+
+The repo is developed in WSL2 (mirrored networking) with a USB Android phone driven by the Windows `adb.exe`. Scripts:
+
+| Script | What it does |
+|---|---|
+| `scripts/phone-watch.sh` | Keeps Metro running, re-applies `adb reverse tcp:8081` after every reconnect, opens the dev client when a phone appears, and logs bundle loads, JS errors and crashes. One line per event. Run it detached: `setsid nohup bash scripts/phone-watch.sh >> .phone-watch.log 2>&1 &`. |
+| `scripts/install-dev-client.sh [apk]` | Installs an APK with retries (for flaky USB), then opens it. Default is the arm64 debug dev client; pass `android/app/build/outputs/apk/release/app-release.apk` for a release. `SERIAL=<device>` picks a device when several are attached. Also copies the APK to `C:\Users\HP\` for sideloading. |
+| `android-rebuild.sh` | Clean prebuild, then build, install and launch the dev client. |
+
+**Metro over Wi-Fi** (no cable): Metro listens on all interfaces, so the dev client can load `http://<PC LAN IP>:8081` ("Enter URL manually"). WSL's Hyper-V firewall blocks inbound by default; allow the port once from an admin PowerShell:
+
+```powershell
+New-NetFirewallHyperVRule -Name "Metro8081" -DisplayName "Metro 8081 (Expo dev)" -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 8081 -RemoteAddresses LocalSubnet -Action Allow
+New-NetFirewallRule -DisplayName "Metro 8081 (Expo dev)" -Direction Inbound -Protocol TCP -LocalPort 8081 -RemoteAddress LocalSubnet -Action Allow -Profile Any
+```
+
+**adb over Wi-Fi** (for installs and logs when USB is unreliable): with the phone briefly on USB, `adb tcpip 5555`, then `adb connect <phone IP>:5555`. Use `-s <phone IP>:5555` (or `SERIAL=` for the install script) while the USB serial is also listed.
+
+**Builds** (from `android/`):
+
+- Dev client: `./gradlew assembleDebug`. Needed again whenever a native dependency, config plugin or `app.config.ts` changes.
+- Release: `./gradlew assembleRelease` builds all four ABIs (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`; about 100 MB; Android 7.0+), so it installs on any Android device. Add `-PreactNativeArchitectures=arm64-v8a` for a much faster single-ABI build for one modern phone. Release builds are signed with the debug keystore, so they install over the dev client (and vice versa) keeping app data.
+- A release build embeds the JS bundle and never talks to Metro; reinstall the dev client to go back to fast refresh.
+- If a native build is interrupted, a half-written C++ object can break the next one (`ld.lld: ... unknown file type`): delete `node_modules/*/android/.cxx/<Variant>` and rebuild.
 
 ## Expo SDK 58 notes
 

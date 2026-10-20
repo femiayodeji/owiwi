@@ -30,8 +30,8 @@ Owiwi is a single Expo app with no server. Screens in `app/` are thin; logic liv
 | `streak/` | `streak.ts`, `index.ts` | yes | `computeStreak()`, `streakLost()`. |
 | `notifications/` | `copy.ts`, `plan.ts`, `schedule.ts`, `deeplink.ts`, `index.ts` | `copy.ts`, `plan.ts` | Rotating copy, pure reminder plan, scheduling with `expo-notifications`, tap handling. |
 | `store/` | `feed.ts`, `bookmarks.ts` | no | zustand stores: `useFeed` for the feed screen, `useBookmarks` (bookmarked urls, toggle/remove/restore). |
-| `components/` | `Owiwi.tsx`, `owiwiAssets.ts`, `Pager.tsx`, `StoryCard.tsx`, `CompletionCard.tsx`, `KeywordEditor.tsx`, `ProviderForm.tsx`, `ui.tsx` | no | UI building blocks. |
-| `lib/` | `dates.ts`, `errors.ts`, `http.ts`, `ids.ts`, `pool.ts`, `secureStore.ts`, `theme.ts`, `share.ts`, `shareStory.ts`, `bookmarks.ts` | all but `ids.ts`, `secureStore.ts`, `shareStory.ts` | Local dates, `AppError` and friendly messages, `fetchWithTimeout`, UUIDs, `mapWithConcurrency`, API key storage, colors, share message formatting and the RN share sheet, bookmark model helpers. |
+| `components/` | `Owiwi.tsx`, `owiwiAssets.ts`, `Pager.tsx`, `StoryCard.tsx`, `StoryActions.tsx`, `CompletionCard.tsx`, `NothingNew.tsx`, `ShareCard.tsx`, `Toast.tsx`, `Sheet.tsx`, `KeywordEditor.tsx`, `ProviderForm.tsx`, `ui.tsx` | no | UI building blocks. `StoryActions` is the Save / Share / Read more row; `NothingNew` is the slot body when every headline was already seen; `ShareCard` renders and captures the share image (`<ShareCardHost />` in `_layout`); `Toast` is the minimal pill toast. |
+| `lib/` | `dates.ts`, `errors.ts`, `http.ts`, `ids.ts`, `pool.ts`, `secureStore.ts`, `theme.ts`, `share.ts`, `shareStory.ts`, `bookmarks.ts` | all but `ids.ts`, `secureStore.ts`, `shareStory.ts` | Local dates, `AppError` and friendly messages, `fetchWithTimeout`, UUIDs, `mapWithConcurrency`, API key storage, colors, share text formatting and share-image title size (`share.ts`), image-or-text sharing (`shareStory.ts`), bookmark model helpers. |
 
 ## Opening the app
 
@@ -123,9 +123,10 @@ Three layers prevent double generation:
 |---|---|
 | `today`, `activeSlot`, `viewSlot` | Current local date, computed active slot, slot tab being viewed. |
 | `settings` | Parsed settings. |
-| `slots.morning`, `slots.evening` | `SlotState`: `status` (`none`, `loading`, `generating`, `ready`, `empty`, `failed`), `cards`, `step`, `error`, `failedKeywords`. |
+| `slots.morning`, `slots.evening` | `SlotState`: `status` (`none`, `loading`, `generating`, `ready`, `empty`, `nothing-new`, `failed`), `cards`, `step`, `error`, `failedKeywords`. |
 | `streak` | `current`, `doneToday`, `lost`. |
 | `justCompleted` | Set when this session completed the day. |
+| `seen` | Normalized URLs of stories seen in the last 48 hours (loaded in `refresh()`, updated by `markSeen()`); drives the resume page. |
 
 Actions: `refresh()`, `setViewSlot()`, `generate(slot, force?)`, `completeDay(slot)`. `completeDay` records the streak day (idempotent), reloads the streak and cancels today's streak-saver nudge.
 

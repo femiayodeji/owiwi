@@ -20,7 +20,7 @@ The feed is the product. "Read more" exists but is secondary.
 4. If a ready digest exists for `(today, activeSlot)`, it is shown. No network calls.
 5. Otherwise the app fetches RSS for each enabled keyword, removes duplicates, makes one LLM call, validates the result, stores it and shows the cards.
 6. The reader swipes vertically through the cards. Each card shown is remembered as **seen** for 48 hours. Reaching the last card completes the day for the streak.
-7. Cards stay for the whole day, so the reader can always swipe back to a story. Reopening a digest resumes at the first unseen card; if every card was seen it opens on the completion card.
+7. Cards stay for the whole day, so the reader can always swipe back to a story. Reopening a digest resumes at the first unseen card; if every card was seen it opens on the completion card, which also offers a quiet "Check for fresh stories" link (the usual regenerate confirm).
 
 ## Slots
 

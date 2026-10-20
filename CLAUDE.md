@@ -22,6 +22,7 @@ The point is the feed. "Read more" exists but is secondary.
 - Validation: `zod` for LLM output and settings.
 - Animation: `react-native-reanimated` for card transitions; **Rive** (`rive-react-native`) for the mascot. Start with a static placeholder behind `<Owiwi emotion="..." />`.
 - Browser for "Read more": `expo-web-browser`.
+- Share as image: `react-native-view-shot` (captures an off-screen card) + `expo-sharing` (loaded lazily; its config plugin is not needed, it only configures receiving shares). React Native `Share` is the text fallback.
 - Tests: `jest` for pure logic (slot selection, wipe, dedupe, streak, JSON parsing).
 
 ## Core flow

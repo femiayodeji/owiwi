@@ -11,7 +11,9 @@ Owiwi is a mobile app (React Native, Expo) for a daily news habit. Each morning 
 - News from free RSS: Google News (default), Bing News, or publisher feeds (BBC, Al Jazeera, TechCrunch, The Verge, ESPN, Hacker News).
 - One LLM call per digest via OpenAI-compatible APIs (OpenAI, OpenRouter, Groq, custom), Anthropic or Gemini, with a "Test connection" check.
 - Anti-hallucination: any card that does not link to a fetched article is dropped.
-- Full-screen vertical card feed with "Read more" in the in-app browser, regenerate on demand.
+- Full-screen vertical card feed with "Read more" in the in-app browser, regenerate on demand (menu, pull down, or "Check for fresh stories" after finishing).
+- No repeats: stories you've seen are remembered for 48 hours and skipped by later digests (a real development comes back once as "Update:"). Nothing new means no LLM call and no token cost.
+- Bookmarks that outlive the daily wipe, and Share as an image of the card in your current theme (text if the image can't be made).
 - Daily streaks, local reminders with rotating copy, and an optional streak-saver nudge.
 - Works offline once today's digest is cached. Stale digests are wiped daily.
 
@@ -50,7 +52,7 @@ See [docs/](docs/README.md): specification, architecture, data model, LLM provid
 
 ## Status
 
-Implemented: everything in the v1 build order up to and including notifications, onboarding, empty/error states and regenerate, plus the Bing and publisher sources. Built on Expo SDK 58. Unit tests (13 suites, 97 tests) and the TypeScript check pass.
+Implemented: everything in the v1 build order up to and including notifications, onboarding, empty/error states and regenerate, plus the Bing and publisher sources. Built on Expo SDK 58. Unit tests (17 suites, 138 tests) and the TypeScript check pass.
 
 Known gaps:
 
@@ -58,4 +60,4 @@ Known gaps:
 - **Rive animation is not implemented.** The owl uses Reanimated bounce and crossfade.
 - **No lint configuration.** `npm run lint` exists but ESLint is not set up.
 - **Bing News RSS** must be re-verified before release, and the suggested model IDs in `src/llm/defaultModels.ts` re-checked against provider docs.
-- **Device testing so far:** the Android release build installs and launches on a Galaxy S22. The full flows (generation, notifications, streaks) are still being tested on the device, and iOS hasn't been tested.
+- **Device testing so far:** Android only, on a Galaxy S22: the dev client and the universal release build (all four ABIs, Android 7.0+) install and run; feed, completion, regenerate, bookmarks and the new toast were checked on the device. Share-as-image is not yet confirmed on a device, and iOS hasn't been tested.
