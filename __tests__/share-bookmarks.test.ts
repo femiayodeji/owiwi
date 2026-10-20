@@ -4,20 +4,19 @@ import { formatShareMessage, SHARE_TAG } from '../src/lib/share';
 import { WIPE_SQL } from '../src/digest/retention';
 
 describe('formatShareMessage', () => {
-  it('joins title, summary, url and the Owiwi tag as plain text', () => {
+  it('joins title, summary and the Owiwi tag as plain text, without the link', () => {
     const out = formatShareMessage({
       title: 'Rates held',
       summary: 'The central bank kept rates unchanged.',
-      url: 'https://example.com/a',
     });
     expect(out.title).toBe('Rates held');
-    expect(out.message).toBe(`Rates held\n\nThe central bank kept rates unchanged.\n\nhttps://example.com/a\n\n${SHARE_TAG}`);
+    expect(out.message).toBe(`Rates held\n\nThe central bank kept rates unchanged.\n\n${SHARE_TAG}`);
   });
 
   it('collapses whitespace and skips empty parts', () => {
-    const out = formatShareMessage({ title: '  Big\n  news ', summary: '   ', url: ' https://x.y/z ' });
+    const out = formatShareMessage({ title: '  Big\n  news ', summary: '   ' });
     expect(out.title).toBe('Big news');
-    expect(out.message).toBe(`Big news\n\nhttps://x.y/z\n\n${SHARE_TAG}`);
+    expect(out.message).toBe(`Big news\n\n${SHARE_TAG}`);
   });
 });
 
