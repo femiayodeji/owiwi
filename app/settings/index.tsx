@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
 import { Row, Section, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
@@ -10,6 +12,10 @@ import { radius, space, THEME_MODE_OPTIONS, type ThemeMode } from '../../src/lib
 import { makeStyles, useTheme } from '../../src/lib/useTheme';
 import { NEWS_SOURCES } from '../../src/news';
 import { useFeed } from '../../src/store/feed';
+
+const AUTHOR = 'oluwainstincts';
+const AUTHOR_URL = 'https://femiayodeji.github.io/';
+const APP_VERSION = Constants.expoConfig?.version;
 
 const THEME_OPTIONS: readonly DropdownOption<ThemeMode>[] = THEME_MODE_OPTIONS.map((o) => ({
   value: o.value,
@@ -72,6 +78,18 @@ export default function SettingsHome() {
       <Text style={[ui.muted, { textAlign: 'center' }]}>
         Owiwi runs entirely on this device. No accounts, no servers, no analytics.
       </Text>
+      <Text style={[ui.muted, styles.credit]}>
+        Made by{' '}
+        <Text
+          style={styles.creditLink}
+          accessibilityRole="link"
+          accessibilityHint="Opens the author's website"
+          onPress={() => void WebBrowser.openBrowserAsync(AUTHOR_URL)}
+        >
+          {AUTHOR}
+        </Text>
+        {APP_VERSION ? ` · v${APP_VERSION}` : ''}
+      </Text>
     </ScrollView>
   );
 }
@@ -109,4 +127,6 @@ const useStyles = makeStyles(({ colors }) => ({
   swatch: { width: 22, height: 22, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong },
   sample: { fontSize: 20, fontWeight: '700', color: colors.navy, marginLeft: space.xs },
   sampleName: { flex: 1, fontSize: 13, color: colors.textMuted },
+  credit: { textAlign: 'center', fontSize: 13, marginTop: space.md },
+  creditLink: { color: colors.indigo, fontWeight: '600' },
 }));

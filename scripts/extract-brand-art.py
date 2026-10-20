@@ -114,21 +114,44 @@ compose(1024, 0.9, (0, 0, 0, 0)).save(os.path.join(out, 'splash-icon.png'))
 compose(256, 0.86, NAVY + (255,)).convert('RGB').save(os.path.join(out, 'favicon.png'))
 print('icon owl px', owl.size)
 
-# Notification icon: head of the idle owl as a white silhouette. Eye whites become
-# transparent so the face stays readable; everything else opaque is white.
-idle = dict(sheets)['idle']
-a = np.asarray(idle).astype(np.float32)
-ys = np.where(a[..., 3].max(axis=1) > 8)[0]
-head = idle.crop((0, ys.min(), idle.width, ys.min() + int((ys.max() - ys.min()) * 0.66)))
+# Notification head: the Idle owl's head (largest, front-facing, symmetric, nothing
+# overlapping it, unlike the book in the app-icon mark). The owl has no neck, so the
+# head is everything above the eye line plus a rounded jaw (half ellipse) that ends
+# just under the face disc's V. Coordinates are in the Idle panel crop.
+HEAD_EYE_Y, HEAD_CHIN_Y = 130, 190
+icrop_idle = sheet[ROWS[0][0]:ROWS[0][1], COLS[0][0] + 10:COLS[0][1] - 10]
+idle_full = np.asarray(cutout(icrop_idle, [icrop_idle[4, 4]], tol=110, soft=130)).astype(np.float32)
+xs = np.where(idle_full[HEAD_EYE_Y, :, 3] > 128)[0]
+hcx, hrx = (xs.min() + xs.max()) / 2, (xs.max() - xs.min()) / 2
+yy, xx = np.mgrid[:idle_full.shape[0], :idle_full.shape[1]]
+ell = ((xx - hcx) / hrx) ** 2 + ((yy - HEAD_EYE_Y) / (HEAD_CHIN_Y - HEAD_EYE_Y)) ** 2
+idle_full[..., 3] *= np.where(yy < HEAD_EYE_Y, 1.0, np.clip((1 - ell) * hrx / 1.5, 0, 1))  # 1.5px soft jaw
+head = Image.fromarray(idle_full.astype(np.uint8), 'RGBA')
+head = head.crop(head.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox())
+
+# Android large icon (expo-notifications `largeIcon`): the full-colour head, transparent.
+# The plugin resizes it to 64dp per density, so 256px covers xxxhdpi.
+trim_square(head, pad_frac=0.02).resize((256, 256), Image.LANCZOS).save(os.path.join(out, 'notification-head.png'), optimize=True)
+
+# Android small icon: Android uses only the alpha channel, so white-on-transparent.
+# The cream face disc is cut out; pupils and beak stay white, so the owl face still
+# reads at 24dp. Edges keep their antialiased alpha; colour is pure white.
 h = np.asarray(head).astype(np.float32)
-lum = h[..., :3].mean(axis=2)
-solid = (h[..., 3] > 128) & (lum < 200)
-sil = np.zeros(h.shape, np.uint8); sil[..., :3] = 255; sil[..., 3] = np.where(solid, 255, 0)
-head_img = trim_square(Image.fromarray(sil, 'RGBA'), pad_frac=0.04)
-head_img.resize((96, 96), Image.LANCZOS).save(os.path.join(out, 'notification-icon.png'))
-p = Image.new('RGB', (96 * 3, 96), (91, 91, 214)); n = head_img.resize((96, 96), Image.LANCZOS); p.paste(n, (0, 0), n)
-p.paste(Image.new('RGB', (96, 96), (30, 30, 30)), (96, 0)); p.paste(n, (96, 0), n)
-compose(256, 0.86, NAVY + (255,)).convert('RGB').resize((96, 96)).save('/dev/null', 'PNG') if False else None
+cream = h[..., :3].mean(axis=2) > 200
+sil = np.zeros(h.shape, np.uint8); sil[..., :3] = 255
+sil[..., 3] = np.clip(h[..., 3] * ~cream, 0, 255).astype(np.uint8)
+head_img = trim_square(Image.fromarray(sil, 'RGBA'), pad_frac=0.02)
+n = np.asarray(head_img.resize((96, 96), Image.LANCZOS)).copy()
+n[..., :3] = 255  # resampling darkens faint edge pixels; the mask must be pure white
+n = Image.fromarray(n, 'RGBA')
+n.save(os.path.join(out, 'notification-icon.png'), optimize=True)
+
+# Preview: small icon on indigo and dark (x3, nearest), at status-bar size, and the large icon.
+p = Image.new('RGB', (288 * 4, 288), (30, 30, 30))
+big = n.resize((288, 288), Image.NEAREST)
+p.paste(Image.new('RGB', (288, 288), (91, 91, 214)), (0, 0)); p.paste(big, (0, 0), big); p.paste(big, (288, 0), big)
+s48 = n.resize((48, 48), Image.LANCZOS); p.paste(s48, (288 * 2 + 120, 120), s48)
+lg = Image.open(os.path.join(out, 'notification-head.png')).resize((256, 256)); p.paste(lg, (288 * 3 + 16, 16), lg)
 p.save(os.path.join(prev, 'notification.png'))
 icons = Image.new('RGB', (1024 * 3, 1024), (247, 245, 240))
 icons.paste(Image.open(os.path.join(out, 'icon.png')), (0, 0))
