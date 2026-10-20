@@ -71,7 +71,12 @@ while true; do
           model=$("$ADB" -s "$serial" shell getprop ro.product.model 2>/dev/null | tr -d '\r')
           say "PHONE+ ${serial} (${model})"
           "$ADB" -s "$serial" reverse tcp:${PORT} tcp:${PORT} >/dev/null 2>&1 && say "REVERSE tcp:${PORT} set on ${serial}"
-          if "$ADB" -s "$serial" shell pm list packages "$PKG" 2>/dev/null | grep -q "package:${PKG}\b"; then
+          if "$ADB" -s "$serial" shell dumpsys activity activities 2>/dev/null | grep -m1 topResumedActivity | grep -q "$PKG/"; then
+            # Already on screen: a USB blip must not reload the app mid-bundle or mid-test.
+            say "PHONE ${serial} resumed; ${PKG} already in front, left as is"
+          elif ! pkgs=$("$ADB" -s "$serial" shell pm list packages "$PKG" 2>/dev/null); then
+            say "PHONE ${serial} couldn't be queried (USB dropped mid-command); will retry on reconnect"
+          elif grep -q "package:${PKG}" <<<"$pkgs"; then
             "$ADB" -s "$serial" shell am start -a android.intent.action.VIEW -d "'${DEV_URL}'" >/dev/null 2>&1 &&
               say "LAUNCH dev client on ${serial}"
           else
