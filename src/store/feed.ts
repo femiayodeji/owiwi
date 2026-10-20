@@ -1,8 +1,15 @@
 import { create } from 'zustand';
 import { getDb } from '../db/client';
-import { clearDigest, getCards, getDigest, listStreakDates, recordStreakDay, type Card } from '../db/queries';
+import {
+  getCards,
+  getDigest,
+  listSeenStories,
+  listStreakDates,
+  markStorySeen,
+  recordStreakDay,
+  type Card,
+} from '../db/queries';
 import { DEFAULT_SETTINGS, loadSettings, type Settings } from '../db/settings';
-import { caughtUpOnLeave, shouldKeepSlot, slotStatusFor } from '../digest/cleared';
 import { generateDigest, isGenerating, type GenerationStep } from '../digest/generate';
 import { wipeStale } from '../digest/retention';
 import { activeSlot as computeActiveSlot } from '../digest/slot';
@@ -10,10 +17,11 @@ import { coalesce } from '../lib/async';
 import { localDate } from '../lib/dates';
 import { friendlyMessage } from '../lib/errors';
 import type { Slot } from '../llm/types';
+import { normalizeUrl } from '../news/dedupe';
 import { cancelTodayNudge } from '../notifications';
 import { computeStreak, streakLost } from '../streak/streak';
 
-export type SlotStatus = 'none' | 'loading' | 'generating' | 'ready' | 'caught-up' | 'empty' | 'failed';
+export type SlotStatus = 'none' | 'loading' | 'generating' | 'ready' | 'empty' | 'nothing-new' | 'failed';
 
 export interface SlotState {
   status: SlotStatus;
@@ -21,17 +29,6 @@ export interface SlotState {
   step: GenerationStep | null;
   error: string | null;
   failedKeywords: string[];
-  /**
-   * The reader reached the completion card and the digest was cleared in the
-   * DB, but its cards stay in memory so the pager stays put. Leaving the slot
-   * (or a new day) switches it to 'caught-up'.
-   */
-  cleared: boolean;
-}
-
-/** State to show when the reader leaves a slot: a just-finished digest becomes caught-up. */
-function leaveSlot(state: SlotState): SlotState {
-  return caughtUpOnLeave(state) ? emptySlot('caught-up') : state;
 }
 
 export interface StreakState {
@@ -48,6 +45,8 @@ interface FeedStore {
   settings: Settings;
   slots: Record<Slot, SlotState>;
   streak: StreakState;
+  /** Normalized URLs of stories seen in the last 48 hours (see src/digest/seen.ts). */
+  seen: ReadonlySet<string>;
   /** True right after this session completed the day (drives the celebrate owl). */
   justCompleted: boolean;
 
@@ -59,12 +58,11 @@ interface FeedStore {
   generate(slot: Slot, force?: boolean): Promise<void>;
   /** Counts the day for the streak. Fires when the last story card is reached. */
   completeDay(slot: Slot): Promise<void>;
-  /** Drops a read digest from the DB. Fires when the completion card is reached. */
-  clearRead(slot: Slot, digestId: string): Promise<void>;
+  /** Remembers a card the reader was shown. Fire-and-forget. */
+  markSeen(card: Card): void;
 }
 
-const hasContent = (s: SlotState): boolean =>
-  (s.status === 'ready' && s.cards.length > 0) || s.status === 'caught-up';
+const hasCards = (s: SlotState): boolean => s.status === 'ready' && s.cards.length > 0;
 
 const emptySlot = (status: SlotStatus = 'loading'): SlotState => ({
   status,
@@ -72,7 +70,6 @@ const emptySlot = (status: SlotStatus = 'loading'): SlotState => ({
   step: null,
   error: null,
   failedKeywords: [],
-  cleared: false,
 });
 
 // Auto-generation is attempted once per (date, slot) per process, so a failure
@@ -86,10 +83,11 @@ export const useFeed = create<FeedStore>((set, get) => {
   async function loadSlot(date: string, slot: Slot): Promise<SlotState> {
     const db = await getDb();
     const digest = await getDigest(db, date, slot);
-    const status = slotStatusFor(digest, isGenerating(date, slot));
-    if (status === 'ready' && digest) return { ...emptySlot('ready'), cards: await getCards(db, digest.id) };
-    if (status === 'failed') return { ...emptySlot('failed'), error: 'Your last digest attempt failed.' };
-    return emptySlot(status);
+    if (!digest) return emptySlot('none');
+    if (digest.status === 'ready') return { ...emptySlot('ready'), cards: await getCards(db, digest.id) };
+    if (digest.status === 'failed') return { ...emptySlot('failed'), error: 'Your last digest attempt failed.' };
+    // 'generating' without a live run here is an orphan from a killed app: treat as not built yet.
+    return emptySlot(isGenerating(date, slot) ? 'generating' : 'none');
   }
 
   async function loadStreak(today: string): Promise<StreakState> {
@@ -107,6 +105,7 @@ export const useFeed = create<FeedStore>((set, get) => {
     settings: DEFAULT_SETTINGS,
     slots: { morning: emptySlot(), evening: emptySlot() },
     streak: { current: 0, doneToday: false, lost: false },
+    seen: new Set(),
     justCompleted: false,
 
     async refresh() {
@@ -119,31 +118,31 @@ export const useFeed = create<FeedStore>((set, get) => {
       const prev = get();
       const dayChanged = prev.today !== today;
 
-      const [morning, evening, streak] = await Promise.all([
+      const [morning, evening, streak, seen] = await Promise.all([
         loadSlot(today, 'morning'),
         loadSlot(today, 'evening'),
         loadStreak(today),
+        listSeenStories(db),
       ]);
-      const viewSlot = dayChanged || prev.activeSlot !== active || !prev.ready ? active : prev.viewSlot;
-      // Don't clobber an in-flight generation in this process, or a finished
-      // digest the reader is still on.
-      const keep = (slot: Slot, next: SlotState) =>
-        shouldKeepSlot(prev.slots[slot], next, {
-          dayChanged,
-          isViewSlot: slot === viewSlot,
-          generatingHere: isGenerating(today, slot),
-        })
-          ? prev.slots[slot]
-          : next;
+      // Don't clobber an in-flight generation in this process, or a "nothing
+      // new" result (it leaves the digest row as it was, so the DB can't tell).
+      const keep = (slot: Slot, next: SlotState) => {
+        const p = prev.slots[slot];
+        if (dayChanged) return next;
+        if (p.status === 'generating' && isGenerating(today, slot)) return p;
+        if (p.status === 'nothing-new' && next.status !== 'ready') return p;
+        return next;
+      };
 
       set({
         ready: true,
         today,
         settings,
         activeSlot: active,
-        viewSlot,
+        viewSlot: dayChanged || prev.activeSlot !== active || !prev.ready ? active : prev.viewSlot,
         slots: { morning: keep('morning', morning), evening: keep('evening', evening) },
         streak,
+        seen: new Set(seen.map((s) => s.url)),
         justCompleted: dayChanged ? false : prev.justCompleted,
       });
 
@@ -161,8 +160,6 @@ export const useFeed = create<FeedStore>((set, get) => {
     },
 
     setViewSlot(slot) {
-      const { viewSlot, slots } = get();
-      if (viewSlot !== slot) patchSlot(viewSlot, leaveSlot(slots[viewSlot]));
       set({ viewSlot: slot });
     },
 
@@ -182,19 +179,23 @@ export const useFeed = create<FeedStore>((set, get) => {
           patchSlot(slot, { status: 'generating', step: null });
           return;
         }
-        if (res.kind === 'empty') {
-          // A regenerate that found nothing keeps the old cards (or the caught-up state).
-          if (hasContent(previous)) {
-            patchSlot(slot, { ...previous, error: "Couldn't find fresh headlines, so your digest wasn't changed." });
+        if (res.kind === 'empty' || res.kind === 'nothing-new') {
+          // A regenerate that found nothing (new) keeps the old cards.
+          if (hasCards(previous)) {
+            const error =
+              res.kind === 'empty'
+                ? "Couldn't find fresh headlines, so your digest wasn't changed."
+                : "Nothing new since your last read, so your digest wasn't changed.";
+            patchSlot(slot, { ...previous, error });
           } else {
-            patchSlot(slot, { ...emptySlot('empty'), failedKeywords: res.failedKeywords });
+            patchSlot(slot, { ...emptySlot(res.kind), failedKeywords: res.failedKeywords });
           }
           return;
         }
         patchSlot(slot, { ...(await loadSlot(date, slot)), failedKeywords: res.failedKeywords });
       } catch (e) {
         const message = friendlyMessage(e);
-        if (hasContent(previous)) {
+        if (hasCards(previous)) {
           patchSlot(slot, { ...previous, error: message });
         } else {
           patchSlot(slot, { ...emptySlot('failed'), error: message });
@@ -212,14 +213,14 @@ export const useFeed = create<FeedStore>((set, get) => {
       }
     },
 
-    async clearRead(slot, digestId) {
-      if (!(await clearDigest(await getDb(), digestId))) return;
-      const { viewSlot, slots } = get();
-      // Only touch the slot if it still shows this digest (not regenerated meanwhile).
-      if (slots[slot].status !== 'ready' || slots[slot].cards[0]?.digestId !== digestId) return;
-      // The cards stay in memory so the completion card keeps celebrating; if the
-      // reader already switched away, go straight to caught-up.
-      patchSlot(slot, viewSlot === slot ? { cleared: true } : emptySlot('caught-up'));
+    markSeen(card) {
+      const url = normalizeUrl(card.url);
+      const { seen } = get();
+      if (seen.has(url)) return;
+      set({ seen: new Set(seen).add(url) });
+      void getDb()
+        .then((db) => markStorySeen(db, card))
+        .catch(() => undefined);
     },
   };
 });

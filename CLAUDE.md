@@ -31,8 +31,7 @@ The point is the feed. "Read more" exists but is secondary.
 3. Wipe stale data (see Retention).
 4. If a `ready` digest exists for `(today, activeSlot)`, show it. No network calls.
 5. Otherwise: fetch RSS per enabled keyword, dedupe, call the active LLM, validate, store articles and cards, mark `ready`, show cards.
-6. User swipes vertically through cards. Reaching the last card completes the day's streak.
-7. Then the read stories are cleared (`clearDigest`): cards and articles deleted, titles saved in `digests.shown_titles`, `cleared_at` set. The row stays `ready`, so no auto-generation; the slot shows "caught up" next time, with Regenerate (resets `cleared_at`).
+6. User swipes vertically through cards. Each card shown is remembered in `seen_stories`. Reaching the last card completes the day's streak. Cards are never deleted early: the reader can always swipe back. Reopening a fully seen digest lands on the completion card.
 
 ## Slots
 
@@ -47,7 +46,7 @@ The point is the feed. "Read more" exists but is secondary.
 - Run the wipe on app launch, on every `AppState` change to `active`, and before any generation. This also handles midnight rollover while the app stays open.
 - `DELETE FROM digests WHERE date < :today` with `ON DELETE CASCADE` on cards and articles.
 - **Never wipe** keywords, providers, settings, `streak_days` or `bookmarks`.
-- Separately, a finished digest is cleared the same day (see Core flow step 7). Evening `already_shown` reads `shown_titles` once the morning is cleared.
+- `seen_stories` is not part of the daily wipe: rows older than 48 hours are pruned in the same pass (`wipeStale`).
 
 ## SQLite schema
 
@@ -79,8 +78,8 @@ CREATE TABLE digests (
   provider_id TEXT,
   model TEXT,
   created_at INTEGER NOT NULL,
-  cleared_at INTEGER,           -- migration 3: digest finished, cards deleted
-  shown_titles TEXT,            -- migration 3: JSON array of the cleared cards' titles
+  cleared_at INTEGER,           -- migration 3: unused legacy column (clearing was removed)
+  shown_titles TEXT,            -- migration 3: unused legacy column
   UNIQUE (date, slot)
 );
 
@@ -123,6 +122,14 @@ CREATE TABLE bookmarks (           -- saved stories; copies card content, no FK,
   published_at TEXT,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE seen_stories (        -- migration 4: cards the reader was shown, kept 48 hours
+  url TEXT PRIMARY KEY,         -- normalized (news dedupe's normalizeUrl)
+  title TEXT NOT NULL,          -- card title, sent as already_shown
+  title_key TEXT NOT NULL,      -- normalized source article title (normalizeTitle)
+  seen_at INTEGER NOT NULL
+);
+CREATE INDEX seen_stories_seen_at ON seen_stories(seen_at);
 
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 -- keys: morning_time, evening_time, cards_per_digest, rss_provider, locale, nudge_enabled, nudge_time
@@ -167,7 +174,9 @@ Settings UI:
 Input to the LLM (one call per digest, not per keyword):
 - slot (`morning` | `evening`), N = `cards_per_digest` (default 10, range 5–10)
 - articles grouped by keyword (title, snippet, source, url, published_at)
-- for the evening slot: titles of today's morning cards, so stories aren't repeated
+- `already_shown`: titles of recently seen stories (most recent first, up to 60), for every slot and for regenerate
+
+Before the LLM, articles matching a seen story (normalized URL or title) are dropped (`dropSeen`). If RSS returned articles but all were seen, the result is `nothing-new`: no LLM call, no digest row written or changed. That differs from `empty` (RSS returned nothing).
 
 ### System prompt (starting point, tune freely)
 
@@ -184,7 +193,9 @@ Rules:
   best source's url.
 - Rank by importance, then recency. Spread cards across the reader's topics where
   good stories exist. Do not pad with weak stories; fewer than {N} is fine.
-- For the evening digest, skip stories listed under "already_shown".
+- Skip stories listed under "already_shown" (the reader has seen them), unless an
+  article reports a material new development; then write one card whose title
+  starts with "Update: ".
 - title: max 90 characters, plain, no clickbait.
 - summary: 2-3 sentences in plain language: what happened and why it matters.
 - Return ONLY valid JSON, no markdown fences, matching this schema:
@@ -206,7 +217,8 @@ Rules:
 - Card: topic chip, title, summary, source + relative time, secondary "Read more" (opens `expo-web-browser`). Not a primary button.
 - Top bar: streak count, slot switcher (active slot prominent, other muted), progress dots or "3 / 10".
 - Last card = completion state: owl celebrates, streak increments, "See you this evening / tomorrow".
-- Pull-to-refresh or menu action "Regenerate" (overwrites the current slot's digest; confirm first because it costs tokens).
+- Pull-to-refresh or menu action "Regenerate" (overwrites the current slot's digest; confirm first because it costs tokens). If nothing new turned up, the cards stay and a banner says so.
+- "Nothing new" state (slot has no digest because every story was already seen): idle owl, when the next digest is due, "Read your <other> digest again" (only if that slot is ready), "Check again" (free unless something new appears), bookmarks link.
 - Loading state: owl "thinking" animation with real progress steps ("Fetching headlines", "Writing your gist").
 
 ## Keywords (CRUD)

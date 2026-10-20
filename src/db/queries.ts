@@ -2,7 +2,8 @@ import type { Db } from './client';
 import type { Article } from '../news/types';
 import type { CardDraft, ProviderConfig, ProviderKind, Slot } from '../llm/types';
 import { newId } from '../lib/ids';
-import { isCleared, resolveShownTitles, serializeShownTitles } from '../digest/cleared';
+import type { SeenStory } from '../digest/seen';
+import { normalizeTitle, normalizeUrl } from '../news/dedupe';
 import { toBookmark, type Bookmark, type BookmarkSource } from '../lib/bookmarks';
 
 export type { Bookmark } from '../lib/bookmarks';
@@ -180,10 +181,6 @@ export interface Digest {
   providerId: string | null;
   model: string | null;
   createdAt: number;
-  /** Set once the reader finished this digest and its cards were deleted. */
-  clearedAt: number | null;
-  /** JSON array of the cleared cards' titles (see src/digest/cleared.ts). */
-  shownTitles: string | null;
 }
 
 interface DigestRow {
@@ -194,8 +191,6 @@ interface DigestRow {
   provider_id: string | null;
   model: string | null;
   created_at: number;
-  cleared_at: number | null;
-  shown_titles: string | null;
 }
 
 const toDigest = (r: DigestRow): Digest => ({
@@ -206,8 +201,6 @@ const toDigest = (r: DigestRow): Digest => ({
   providerId: r.provider_id,
   model: r.model,
   createdAt: r.created_at,
-  clearedAt: r.cleared_at ?? null,
-  shownTitles: r.shown_titles ?? null,
 });
 
 export interface Card {
@@ -254,40 +247,6 @@ export async function getDigest(db: Db, date: string, slot: Slot): Promise<Diges
 export async function getCards(db: Db, digestId: string): Promise<Card[]> {
   const rows = await db.getAllAsync<CardRow>('SELECT * FROM cards WHERE digest_id = ? ORDER BY position', digestId);
   return rows.map(toCard);
-}
-
-/** Titles of the stories in (date, slot)'s ready digest, including one already read and cleared. */
-export async function getCardTitles(db: Db, date: string, slot: Slot): Promise<string[]> {
-  const digest = await getDigest(db, date, slot);
-  if (!digest || digest.status !== 'ready') return [];
-  const cardTitles = isCleared(digest) ? [] : (await getCards(db, digest.id)).map((c) => c.title);
-  return resolveShownTitles(digest, cardTitles);
-}
-
-/**
- * Marks a finished digest as read: saves its card titles on the row, then
- * deletes its cards and articles, in one transaction. The row stays ready so
- * the slot is not generated again. No-op if already cleared or not ready.
- */
-export async function clearDigest(db: Db, digestId: string): Promise<boolean> {
-  let cleared = false;
-  await db.withTransactionAsync(async () => {
-    const rows = await db.getAllAsync<{ title: string }>(
-      'SELECT title FROM cards WHERE digest_id = ? ORDER BY position',
-      digestId,
-    );
-    const res = await db.runAsync(
-      "UPDATE digests SET cleared_at = ?, shown_titles = ? WHERE id = ? AND status = 'ready' AND cleared_at IS NULL",
-      Date.now(),
-      serializeShownTitles(rows.map((r) => r.title)),
-      digestId,
-    );
-    if (res.changes === 0) return;
-    await db.runAsync('DELETE FROM cards WHERE digest_id = ?', digestId);
-    await db.runAsync('DELETE FROM articles WHERE digest_id = ?', digestId);
-    cleared = true;
-  });
-  return cleared;
 }
 
 /**
@@ -373,12 +332,41 @@ export async function completeDigest(
       );
     }
     await db.runAsync(
-      "UPDATE digests SET status = 'ready', provider_id = ?, model = ?, cleared_at = NULL, shown_titles = NULL WHERE id = ?",
+      "UPDATE digests SET status = 'ready', provider_id = ?, model = ? WHERE id = ?",
       provider.id,
       provider.model,
       digestId,
     );
   });
+}
+
+// ---------- seen stories ----------
+// Kept 48 hours (pruned by wipeStale), never by the daily digest wipe.
+
+/** Most recently seen first. */
+export async function listSeenStories(db: Db): Promise<SeenStory[]> {
+  return db.getAllAsync<SeenStory>(
+    'SELECT url, title, title_key AS titleKey FROM seen_stories ORDER BY seen_at DESC',
+  );
+}
+
+/**
+ * Records a card as seen (first sighting wins). The title key comes from the
+ * source article's RSS title, which is what the next fetch is compared with.
+ */
+export async function markStorySeen(db: Db, card: Pick<Card, 'digestId' | 'url' | 'title'>): Promise<void> {
+  const article = await db.getFirstAsync<{ title: string }>(
+    'SELECT title FROM articles WHERE digest_id = ? AND url = ? LIMIT 1',
+    card.digestId,
+    card.url,
+  );
+  await db.runAsync(
+    'INSERT OR IGNORE INTO seen_stories (url, title, title_key, seen_at) VALUES (?, ?, ?, ?)',
+    normalizeUrl(card.url),
+    card.title,
+    normalizeTitle(article?.title ?? card.title),
+    Date.now(),
+  );
 }
 
 // ---------- streak ----------

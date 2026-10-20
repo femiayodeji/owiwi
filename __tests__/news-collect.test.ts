@@ -53,7 +53,21 @@ describe('collectArticles', () => {
   it('returns empty when everything fails', async () => {
     const src = fakeSource(() => Promise.reject(new Error('down')));
     const res = await collectArticles(kws('A', 'B'), src, { locale });
-    expect(res).toEqual({ articles: [], failedKeywords: ['A', 'B'] });
+    expect(res).toEqual({ articles: [], failedKeywords: ['A', 'B'], excluded: 0 });
+  });
+
+  it('drops excluded items before the per-keyword cap and over-fetches to refill it', async () => {
+    const limits: (number | undefined)[] = [];
+    const src = fakeSource((_kw, opts) => {
+      limits.push(opts.limit);
+      return items('a', 30);
+    });
+    const seen = new Set(items('a', 10).map((a) => a.url));
+    const res = await collectArticles(kws('A'), src, { locale, perKeyword: 15, exclude: (a) => seen.has(a.url) });
+    expect(limits).toEqual([30]);
+    expect(res.excluded).toBe(10);
+    expect(res.articles).toHaveLength(15);
+    expect(res.articles.some((a) => seen.has(a.url))).toBe(false);
   });
 
   it('caps per keyword and passes the limit', async () => {

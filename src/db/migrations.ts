@@ -86,12 +86,22 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX bookmarks_created ON bookmarks(created_at);
   `,
-  // read-news clearing: a finished digest keeps its row (cleared_at set) but
-  // loses its cards; shown_titles keeps their titles (JSON array) for the
-  // evening "already_shown" dedupe.
+  // read-news clearing (since removed). The columns stay but are unused legacy.
   `
   ALTER TABLE digests ADD COLUMN cleared_at INTEGER;
   ALTER TABLE digests ADD COLUMN shown_titles TEXT;
+  `,
+  // seen stories: cards the reader swiped to, kept 48 hours so new digests skip
+  // them. url and title_key use the news dedupe normalization. No foreign key,
+  // so the daily digest wipe leaves them alone.
+  `
+  CREATE TABLE seen_stories (
+    url TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    title_key TEXT NOT NULL,
+    seen_at INTEGER NOT NULL
+  );
+  CREATE INDEX seen_stories_seen_at ON seen_stories(seen_at);
   `,
 ];
 

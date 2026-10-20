@@ -19,8 +19,8 @@ The feed is the product. "Read more" exists but is secondary.
 3. Stale data from earlier days is wiped.
 4. If a ready digest exists for `(today, activeSlot)`, it is shown. No network calls.
 5. Otherwise the app fetches RSS for each enabled keyword, removes duplicates, makes one LLM call, validates the result, stores it and shows the cards.
-6. The reader swipes vertically through the cards. Reaching the last card completes the day for the streak.
-7. Read stories are then cleared: the digest's cards and articles are deleted, but the digest row stays (marked cleared) so that slot is not generated again. The completion card still celebrates in that session; the next time the reader opens that slot it shows a "caught up" state (owl, streak, "See you this evening / tomorrow") with an optional Regenerate.
+6. The reader swipes vertically through the cards. Each card shown is remembered as **seen** for 48 hours. Reaching the last card completes the day for the streak.
+7. Cards stay for the whole day, so the reader can always swipe back to a story. Reopening a digest resumes at the first unseen card; if every card was seen it opens on the completion card.
 
 ## Slots
 
@@ -28,7 +28,7 @@ The feed is the product. "Read more" exists but is secondary.
 - **Active slot** is `evening` if the current time is at or after the evening time, otherwise `morning`.
 - Only the active slot generates automatically, and only once per app session; a failure shows a retry button instead of looping.
 - The other slot is shown as a muted tab. If it has no digest it shows a "Generate" button. It is never auto-generated, so a reader who opens at 20:00 is not forced to make a morning digest.
-- The evening digest receives the titles of today's morning cards and is told not to repeat those stories. This still works after the morning digest was read and cleared, because its titles are saved on the digest row.
+- Every digest (morning, evening, regenerate) skips stories the reader has seen in the last 48 hours: matching articles are dropped before the LLM call, and the seen titles are sent as `already_shown` so the model also skips the same story from another outlet. A real new development on a seen story may come back as one card titled "Update: ...".
 
 ## Digest content
 
@@ -36,9 +36,10 @@ The feed is the product. "Read more" exists but is secondary.
 - Each card has a topic, a title (max 90 characters), a 2 to 3 sentence summary, the source and publication time, and a "Read more" link that opens the original article in the in-app browser.
 - Cards are built only from the fetched articles. Any card whose link is not one of the fetched articles is discarded.
 - If no articles are found at all, an empty state is shown and no LLM call is made.
+- If articles were found but the reader has seen all of them, the slot shows **Nothing new**: when the next digest is due, "Read your <other> digest again" (only if that slot has a digest), "Check again" (free unless something new turns up) and a link to Bookmarks. No LLM call, nothing stored.
 - If some keywords fail to fetch, the digest is built from the rest and the feed lists which keywords could not be reached.
 - Each card also has secondary **Save** (bookmark toggle) and **Share** actions. Share opens the system share sheet with the title, summary, link and "via Owiwi". Saved stories appear on the **Bookmarks** screen (feed menu and Settings), newest first, with Read more, Share and Remove (with Undo). Bookmarks are copies, so they outlive the daily wipe.
-- **Regenerate** (feed menu or pull down on the cards) rebuilds the current slot's digest. It asks for confirmation first because it uses the reader's tokens. If regeneration fails, the previous cards are kept. On a caught-up slot, Regenerate (button or menu) builds fresh cards and the slot is no longer cleared; if it fails, the slot stays caught up.
+- **Regenerate** (feed menu or pull down on the cards) rebuilds the current slot's digest. It asks for confirmation first because it uses the reader's tokens. If regeneration fails, finds no headlines, or finds nothing new, the previous cards are kept and a banner says so (no tokens are used when nothing is new).
 - Changing keywords does not invalidate today's digest. The reader can regenerate instead.
 
 ## Keywords
@@ -91,7 +92,7 @@ Limits: about 15 items per keyword and 60 articles in total per digest, shared f
 | idle | Default, evening slot with no digest, notifications step of onboarding | Ready for your next read. |
 | happy | Morning slot with no digest yet, onboarding welcome | Good morning! Let's catch up. |
 | thinking | Digest is being generated | Gathering and summarizing your top stories... |
-| celebrate | Completion card after the last story; caught-up slot | You did it! Streak +1 |
+| celebrate | Completion card after the last story | You did it! Streak +1 |
 | sad | Streak lost, empty or failed digest | No worries. Tomorrow is a new day. |
 | sleepy | Opened between 23:00 and 04:59 | Rest well. More news tomorrow. |
 

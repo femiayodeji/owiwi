@@ -1,5 +1,5 @@
 import type { Slot } from '../llm/types';
-import { minutesOfDay, timeToMinutes } from '../lib/dates';
+import { formatTime, minutesOfDay, timeToMinutes } from '../lib/dates';
 
 /** Active slot = evening if now >= eveningTime, else morning. */
 export function activeSlot(now: Date, eveningTime: string): Slot {
@@ -15,6 +15,13 @@ export function otherSlot(slot: Slot): Slot {
 export function isLateNight(now: Date): boolean {
   const h = now.getHours();
   return h >= 23 || h < 5;
+}
+
+/** "Your evening digest is at 19:00" / "Your morning digest is tomorrow at 07:00". */
+export function nextDigestLine(now: Date, morningTime: string, eveningTime: string): string {
+  return activeSlot(now, eveningTime) === 'morning'
+    ? `Your evening digest is at ${formatTime(eveningTime)}.`
+    : `Your morning digest is tomorrow at ${formatTime(morningTime)}.`;
 }
 
 export const SLOT_LABEL: Record<Slot, string> = { morning: 'Morning', evening: 'Evening' };

@@ -37,11 +37,22 @@ describe('buildUserPrompt', () => {
       url: 'u1',
       published_at: '2026-10-17T07:00:00Z',
     });
-    expect(p.already_shown).toEqual([]);
+    expect(p.already_shown).toEqual(['x']);
   });
 
-  it('includes already_shown for evening', () => {
-    const p = JSON.parse(buildUserPrompt({ slot: 'evening', n: 5, articles, alreadyShown: ['Morning story'] }));
-    expect(p.already_shown).toEqual(['Morning story']);
+  it('includes already_shown for every slot', () => {
+    for (const slot of ['morning', 'evening'] as const) {
+      const p = JSON.parse(buildUserPrompt({ slot, n: 5, articles, alreadyShown: ['Seen story'] }));
+      expect(p.already_shown).toEqual(['Seen story']);
+    }
+  });
+});
+
+describe('already_shown rule', () => {
+  it('applies to every slot and allows marked updates', () => {
+    const s = buildSystemPrompt(5, 'morning');
+    expect(s).toContain('Skip stories listed under "already_shown"');
+    expect(s).toContain('"Update: "');
+    expect(s).not.toContain('For the evening digest');
   });
 });

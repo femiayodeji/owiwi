@@ -13,7 +13,9 @@ Rules:
   best source's url.
 - Rank by importance, then recency. Spread cards across the reader's topics where
   good stories exist. Do not pad with weak stories; fewer than {N} is fine.
-- For the evening digest, skip stories listed under "already_shown".
+- Skip stories listed under "already_shown" (the reader has seen them), unless an
+  article reports a material new development; then write one card whose title
+  starts with "Update: ".
 - title: max 90 characters, plain, no clickbait.
 - summary: 2-3 sentences in plain language: what happened and why it matters.
 - Return ONLY valid JSON, no markdown fences, matching this schema:
@@ -31,7 +33,7 @@ export interface UserPromptInput {
   slot: Slot;
   n: number;
   articles: Article[];
-  /** Titles of today's morning cards (evening only). */
+  /** Titles of stories the reader has recently seen, most recent first. */
   alreadyShown: string[];
 }
 
@@ -56,6 +58,6 @@ export function buildUserPrompt({ slot, n, articles, alreadyShown }: UserPromptI
     slot,
     max_cards: n,
     topics,
-    already_shown: slot === 'evening' ? alreadyShown : [],
+    already_shown: alreadyShown,
   });
 }

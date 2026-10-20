@@ -4,10 +4,10 @@ import {
   completeDigest,
   deleteDigest,
   getActiveProvider,
-  getCardTitles,
   getCards,
   getDigest,
   listKeywords,
+  listSeenStories,
   setDigestStatus,
 } from '../db/queries';
 import { loadSettings, parseLocale } from '../db/settings';
@@ -16,9 +16,9 @@ import { getApiKey } from '../lib/secureStore';
 import type { Slot } from '../llm/types';
 import { buildSystemPrompt, buildUserPrompt, createProvider, generateCards } from '../llm';
 import { collectArticles, getNewsSource } from '../news';
-import { statusAfterFailure } from './cleared';
 import { decideGeneration } from './guard';
 import { wipeStale } from './retention';
+import { MAX_ALREADY_SHOWN, seenMatcher } from './seen';
 
 export type GenerationStep = 'fetching' | 'writing' | 'saving';
 
@@ -31,6 +31,8 @@ export const STEP_LABEL: Record<GenerationStep, string> = {
 export type GenerateResult =
   | { kind: 'ready'; digestId: string; failedKeywords: string[] }
   | { kind: 'empty'; failedKeywords: string[] }
+  /** RSS had articles, but the reader has seen all of them. No LLM call, digest untouched. */
+  | { kind: 'nothing-new'; failedKeywords: string[] }
   | { kind: 'busy' };
 
 export interface GenerateOptions {
@@ -86,20 +88,23 @@ async function run(db: Db, { date, slot, force = false, onStep, signal }: Genera
   const { id: digestId, previousStatus } = await beginDigest(db, date, slot, provider);
   try {
     onStep?.('fetching');
-    const { articles, failedKeywords } = await collectArticles(
+    const seen = await listSeenStories(db);
+    const collected = await collectArticles(
       keywords.map((k) => ({ label: k.label, query: k.query })),
       getNewsSource(settings.rss_provider),
-      { locale: parseLocale(settings.locale), signal },
+      { locale: parseLocale(settings.locale), signal, exclude: seenMatcher(seen) },
     );
 
+    const { articles, failedKeywords } = collected;
     if (articles.length === 0) {
-      await restoreOrDiscard(db, digestId, previousStatus === null, date, slot);
-      return { kind: 'empty', failedKeywords };
+      await restoreOrDiscard(db, digestId, previousStatus === null);
+      // Headlines came back but the reader has seen them all: no LLM call.
+      return { kind: collected.excluded > 0 ? 'nothing-new' : 'empty', failedKeywords };
     }
 
     onStep?.('writing');
     const n = settings.cards_per_digest;
-    const alreadyShown = slot === 'evening' ? await getCardTitles(db, date, 'morning') : [];
+    const alreadyShown = seen.slice(0, MAX_ALREADY_SHOWN).map((s) => s.title);
     const { cards } = await generateCards(createProvider(provider, apiKey), {
       system: buildSystemPrompt(n, slot),
       user: buildUserPrompt({ slot, n, articles, alreadyShown }),
@@ -113,24 +118,18 @@ async function run(db: Db, { date, slot, force = false, onStep, signal }: Genera
     await completeDigest(db, digestId, provider, articles, cards);
     return { kind: 'ready', digestId, failedKeywords };
   } catch (e) {
-    await restoreOrFail(db, digestId, date, slot);
+    await restoreOrFail(db, digestId);
     throw toAppError(e);
   }
 }
 
-/**
- * On failure: a regenerate keeps its previous cards (or its caught-up state if
- * they were already read and cleared); a first attempt is marked failed with
- * nothing cached.
- */
-async function restoreOrFail(db: Db, digestId: string, date: string, slot: Slot): Promise<void> {
+/** On failure: a regenerate keeps its previous cards; a first attempt is marked failed with nothing cached. */
+async function restoreOrFail(db: Db, digestId: string): Promise<void> {
   const hasCards = (await getCards(db, digestId)).length > 0;
-  const row = await getDigest(db, date, slot);
-  const cleared = row !== null && row.clearedAt !== null;
-  await setDigestStatus(db, digestId, statusAfterFailure(hasCards, cleared));
+  await setDigestStatus(db, digestId, hasCards ? 'ready' : 'failed');
 }
 
-async function restoreOrDiscard(db: Db, digestId: string, isNew: boolean, date: string, slot: Slot): Promise<void> {
+async function restoreOrDiscard(db: Db, digestId: string, isNew: boolean): Promise<void> {
   if (isNew) await deleteDigest(db, digestId);
-  else await restoreOrFail(db, digestId, date, slot);
+  else await restoreOrFail(db, digestId);
 }

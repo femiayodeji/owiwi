@@ -19,9 +19,9 @@ All persistent data is on the device:
 BEGIN; <migration sql>; PRAGMA user_version = <n>; COMMIT;
 ```
 
-so each migration and its version bump are applied atomically. The current schema version is 3 (2 adds `bookmarks`, 3 adds `digests.cleared_at` and `digests.shown_titles`). Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
+so each migration and its version bump are applied atomically. The current schema version is 4 (2 adds `bookmarks`, 3 adds `digests.cleared_at` and `digests.shown_titles`, now unused, 4 adds `seen_stories`). Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
 
-## Schema (version 3)
+## Schema (version 4)
 
 ```sql
 CREATE TABLE keywords (
@@ -50,8 +50,8 @@ CREATE TABLE digests (
   provider_id TEXT,
   model TEXT,
   created_at INTEGER NOT NULL,  -- also reset when a (re)generation starts
-  cleared_at INTEGER,           -- migration 3: set when the reader finished it and its cards were deleted
-  shown_titles TEXT,            -- migration 3: JSON array of the cleared cards' titles
+  cleared_at INTEGER,           -- migration 3: unused legacy column (read-news clearing was removed)
+  shown_titles TEXT,            -- migration 3: unused legacy column
   UNIQUE (date, slot)
 );
 
@@ -102,6 +102,18 @@ CREATE TABLE bookmarks (         -- saved stories, a self-contained copy of the 
 CREATE INDEX bookmarks_created ON bookmarks(created_at);
 ```
 
+```sql
+CREATE TABLE seen_stories (     -- migration 4: cards the reader was shown, kept 48 hours
+  url TEXT PRIMARY KEY,         -- normalizeUrl(card.url)
+  title TEXT NOT NULL,          -- card title, sent to the LLM as already_shown
+  title_key TEXT NOT NULL,      -- normalizeTitle(source article title), matched against new RSS titles
+  seen_at INTEGER NOT NULL
+);
+CREATE INDEX seen_stories_seen_at ON seen_stories(seen_at);
+```
+
+A card is seen when its page becomes visible in the feed (`useFeed.markSeen`, fire-and-forget). `seen_stories` has no foreign key, so it outlives the daily wipe. Queries: `listSeenStories` (most recent first), `markStorySeen` in `src/db/queries.ts`. Pure helpers in `src/digest/seen.ts`: `dropSeen` (hard filter before the LLM) and `resumeIndex` (where the pager opens).
+
 `bookmarks` deliberately has no foreign key to `cards` or `digests`: it copies the card's content so a saved story survives the daily wipe (which cascades cards) and any removal of read cards. Queries: `listBookmarks`, `listBookmarkedUrls`, `isBookmarked`, `addBookmark`, `saveBookmark` (used by undo, keeps the original id and `created_at`), `removeBookmark` in `src/db/queries.ts`. The `useBookmarks` zustand store (`src/store/bookmarks.ts`) keeps the set of bookmarked urls in memory for the cards.
 
 IDs are UUIDs from `expo-crypto` (`newId()` in `src/lib/ids.ts`). Timestamps (`created_at`, `completed_at`) are epoch milliseconds. `published_at` is an ISO 8601 string or null.
@@ -113,16 +125,15 @@ IDs are UUIDs from `expo-crypto` (`newId()` in `src/lib/ids.ts`). Timestamps (`c
 | At most 8 enabled keywords | `addKeyword` (new keyword starts disabled at the cap), `setKeywordEnabled` (returns `false`) in `src/db/queries.ts`; `MAX_ENABLED_KEYWORDS` |
 | Exactly one active provider (when any exist) | `saveProvider` (first provider becomes active), `setActiveProvider`, `deleteProvider` (promotes another) |
 | One digest per `(date, slot)` | `UNIQUE (date, slot)`; `beginDigest` reuses the existing row |
-| Articles and cards written atomically with `status = 'ready'` | `completeDigest` (single transaction; also resets `cleared_at` and `shown_titles`) |
-| Finished digest cleared atomically: titles saved to `shown_titles`, `cleared_at` set, cards and articles deleted; row stays `ready` | `clearDigest`, called by `useFeed.completeDay()` after the streak is recorded |
-| Evening `already_shown` survives clearing | `getCardTitles` reads live card titles, or `shown_titles` (zod-validated by `parseShownTitles` in `src/digest/cleared.ts`) once cleared |
+| Articles and cards written atomically with `status = 'ready'` | `completeDigest` (single transaction) |
+| A story is marked seen once, first sighting kept | `markStorySeen` uses `INSERT OR IGNORE` on the normalized url |
 | Streak day recorded once per date | `recordStreakDay` uses `INSERT OR IGNORE` |
 | One bookmark per story | `url UNIQUE`; `saveBookmark` uses `INSERT OR IGNORE` |
 | Keyword reorder is atomic | `reorderKeywords` (transaction) |
 
 ## Retention
 
-`wipeStale(db, today)` in `src/digest/retention.ts` runs `DELETE FROM digests WHERE date < ?`. Articles and cards go with their digest through `ON DELETE CASCADE`. `keywords`, `providers`, `settings`, `streak_days` and `bookmarks` are never touched. It is called from `useFeed.refresh()` (launch and every foreground) and at the start of `generateDigest()`.
+`wipeStale(db, today)` in `src/digest/retention.ts` runs `DELETE FROM digests WHERE date < ?`. Articles and cards go with their digest through `ON DELETE CASCADE`. In the same pass it prunes `seen_stories` older than 48 hours (`SEEN_TTL_MS`); the daily wipe never deletes them otherwise. `keywords`, `providers`, `settings`, `streak_days` and `bookmarks` are never touched. It is called from `useFeed.refresh()` (launch and every foreground) and at the start of `generateDigest()`.
 
 ## Settings
 

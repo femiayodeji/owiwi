@@ -32,7 +32,7 @@ Spacing (`space`): 4, 8, 16, 24, 32. Radii (`radius`): 8, 14, 22, pill. The app 
 
 | Emotion | Brand copy | Shown when |
 |---|---|---|
-| `idle` | Ready for your next read. | Evening slot with no digest; onboarding notifications step |
+| `idle` | Ready for your next read. | Evening slot with no digest; nothing new; onboarding notifications step |
 | `happy` | Good morning! Let's catch up. | Morning slot with no digest; onboarding welcome |
 | `thinking` | Gathering and summarizing your top stories... | Digest generating (with progress steps) |
 | `celebrate` | You did it! Streak +1 | Completion card after the last story |
@@ -67,11 +67,12 @@ Rules: use the brand artwork only. Do not redraw the owl, substitute emojis, or 
 
 - **Pager:** full-screen vertical `FlatList` with `pagingEnabled`, `getItemLayout`, `windowSize={3}`. Cards enter with a Reanimated `FadeInDown`. Pull down on the cards to regenerate (with confirmation).
 - **Slot tabs:** the selected tab is filled indigo; the non-active, unselected slot is muted (45% opacity).
-- **Menu (`...`):** Regenerate digest (when ready or caught up), Bookmarks, Appearance, Keywords, LLM provider, Schedule, All settings. Content first, then settings. Icons are monochrome text glyphs (↻ ★ ◐ # ✦ ◷ ⚙), no colour emoji.
+- **Menu (`...`):** Regenerate digest (when ready), Bookmarks, Appearance, Keywords, LLM provider, Schedule, All settings. Content first, then settings. Icons are monochrome text glyphs (↻ ★ ◐ # ✦ ◷ ⚙), no colour emoji.
 - **Read more:** a text link that opens `expo-web-browser`. Deliberately not a primary button.
 - **Save / Share:** muted text actions left of Read more (`src/components/StoryActions.tsx`). Each action is a 44pt-tall touch target with horizontal-only hit slop, so neighbours never overlap. Save toggles an outlined ☆ to a filled indigo ★ and shows a toast ("Saved to Bookmarks." with a View action). Toasts sit near the bottom, above the safe-area inset and clear of a full card's action row, so the top bar stays usable. Share uses React Native's `Share` sheet with the message from `formatShareMessage()` (`src/lib/share.ts`).
 - **Bookmarks screen (`app/bookmarks.tsx`):** saved stories as compact cards, newest first, each with Remove (toast with Undo), Share and Read more. Empty state: idle Owiwi with its brand copy and a hint to tap Save.
-- **Completion card:** after the last story. Celebrating owl, "N days in a row", and "See you this evening." (morning) or "See you tomorrow." (evening). Reaching the last story card records the streak.
+- **Completion card:** after the last story. Celebrating owl, "N days in a row", and "See you this evening." (morning) or "See you tomorrow." (evening). Reaching the last story card records the streak. Reopening a digest whose cards were all seen opens on this card; swipe up to go back to the stories.
+- **Nothing new (`src/components/NothingNew.tsx`):** when every story the news sources returned was already seen and the slot has no digest. Idle owl (sleepy late at night), streak flame, "Nothing new since your last read", when the next digest is due ("Your evening digest is at 19:00." / "Your morning digest is tomorrow at 07:00."), then quiet secondary actions: "Read your <other> digest again" (only when that slot is ready), "Check again" with the hint "Free unless something new turns up.", and a "View bookmarks" link. A regenerate that finds nothing new keeps the cards and shows the banner "Nothing new since your last read, so your digest wasn't changed."
 - **Thinking state:** owl plus the three steps "Fetching headlines", "Writing your gist", "Saving your digest", each marked done, current or pending.
 - **Empty / failed / no digest:** owl, short explanation, and actions (Try again, Edit keywords, Open settings, Generate).
 - All article and model text is rendered as plain `Text`.

@@ -37,7 +37,7 @@ See [architecture.md](architecture.md) for what each module does.
 ## Conventions
 
 - TypeScript `strict`, no `any`.
-- Pure logic lives in plain functions with unit tests. Keep the following free of Expo and React Native imports so jest can run them directly: `src/news/*`, `src/llm/*`, `src/streak/*`, `src/notifications/copy.ts`, `src/notifications/plan.ts`, `src/digest/slot.ts`, `src/digest/guard.ts`, `src/digest/retention.ts`, `src/lib/share.ts`, `src/lib/bookmarks.ts`, `src/db/migrations.ts`, and the parsing in `src/db/settings.ts`. Code that needs a database takes a small interface (`MigrationDb`, `WipeDb`) or the `Db` type so tests can pass a fake.
+- Pure logic lives in plain functions with unit tests. Keep the following free of Expo and React Native imports so jest can run them directly: `src/news/*`, `src/llm/*`, `src/streak/*`, `src/notifications/copy.ts`, `src/notifications/plan.ts`, `src/digest/slot.ts`, `src/digest/guard.ts`, `src/digest/retention.ts`, `src/digest/seen.ts`, `src/lib/share.ts`, `src/lib/bookmarks.ts`, `src/db/migrations.ts`, and the parsing in `src/db/settings.ts`. Code that needs a database takes a small interface (`MigrationDb`, `WipeDb`) or the `Db` type so tests can pass a fake.
 - Screens stay thin; logic goes in `src/`.
 - User-facing errors are `AppError` with a friendly, actionable message. Never include the API key, request bodies or raw provider responses in errors or logs.
 - API keys are only read and written through `src/lib/secureStore.ts`.
@@ -61,6 +61,7 @@ See [architecture.md](architecture.md) for what each module does.
 | `__tests__/news-collect.test.ts` | `collectArticles` (per-keyword failure, caps, concurrency 3, fair total cap, cross-keyword dedupe, abort), `capFairly` |
 | `__tests__/llm-adapters.test.ts` | Request shape for all three adapters, JSON-mode 400 fallback, status mapping, blocked Gemini prompts, keys never leak into errors |
 | `__tests__/llm-prompt.test.ts` | `buildSystemPrompt`, `buildUserPrompt` grouping and `already_shown` |
+| `__tests__/digest-seen.test.ts` | `dropSeen`, `resumeIndex`, seen-story prune in `wipeStale`, `nextDigestLine`, migration order |
 | `__tests__/llm-validate.test.ts` | `extractJson`, `parseCards` (URL allow-list, trailing slash, dedupe, cap, title truncation, schema failures) |
 | `__tests__/llm-generate.test.ts` | `generateCards` retry-once behaviour, `testConnection` messages |
 | `__tests__/streak.test.ts` | `computeStreak` (today, yesterday, gaps, boundaries, duplicates, timezone clamp, longest) |

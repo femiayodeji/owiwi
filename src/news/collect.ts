@@ -9,11 +9,14 @@ export interface CollectOpts {
   perKeyword?: number;
   total?: number;
   concurrency?: number;
+  /** Drops items before the per-keyword and total caps (e.g. stories already seen). */
+  exclude?: (a: Article) => boolean;
 }
 
 export interface CollectResult {
   articles: Article[]; // grouped by keyword, in keyword order
   failedKeywords: string[]; // labels
+  excluded: number; // items dropped by opts.exclude
 }
 
 /** Picks up to `total` items round-robin across groups so no group eats the budget. Keeps group order. */
@@ -46,12 +49,18 @@ export async function collectArticles(
   const perKeyword = opts.perKeyword ?? 15;
   const total = opts.total ?? 60;
   const failedKeywords: string[] = [];
+  const exclude = opts.exclude;
+  let excluded = 0;
 
   const fetched = await mapWithConcurrency(keywords, opts.concurrency ?? 3, async (kw) => {
     if (opts.signal?.aborted) return [];
     try {
-      const items = await source.fetch(kw, { locale: opts.locale, signal: opts.signal, limit: perKeyword });
-      return items.slice(0, perKeyword).map((a) => ({ ...a, keywordLabel: kw.label }));
+      // Over-fetch when excluding so seen stories don't eat the per-keyword budget.
+      const limit = exclude ? perKeyword * 2 : perKeyword;
+      const items = await source.fetch(kw, { locale: opts.locale, signal: opts.signal, limit });
+      const kept = exclude ? items.filter((a) => !exclude(a)) : items;
+      excluded += items.length - kept.length;
+      return kept.slice(0, perKeyword).map((a) => ({ ...a, keywordLabel: kw.label }));
     } catch (e) {
       if (!(opts.signal?.aborted && isAbortError(e))) failedKeywords.push(kw.label);
       return [];
@@ -75,5 +84,6 @@ export async function collectArticles(
   return {
     articles: capFairly(groups, total).flat(),
     failedKeywords: keywords.map((k) => k.label).filter((l) => failed.has(l)),
+    excluded,
   };
 }

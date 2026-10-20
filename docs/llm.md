@@ -72,7 +72,9 @@ Rules:
   best source's url.
 - Rank by importance, then recency. Spread cards across the reader's topics where
   good stories exist. Do not pad with weak stories; fewer than {N} is fine.
-- For the evening digest, skip stories listed under "already_shown".
+- Skip stories listed under "already_shown" (the reader has seen them), unless an
+  article reports a material new development; then write one card whose title
+  starts with "Update: ".
 - title: max 90 characters, plain, no clickbait.
 - summary: 2-3 sentences in plain language: what happened and why it matters.
 - Return ONLY valid JSON, no markdown fences, matching this schema:
@@ -89,11 +91,11 @@ Rules:
   "topics": [
     { "topic": "AI", "articles": [ { "title": "...", "snippet": "...", "source": "...", "url": "...", "published_at": "..." } ] }
   ],
-  "already_shown": ["titles of today's morning cards"]
+  "already_shown": ["titles of stories the reader has seen"]
 }
 ```
 
-Topics follow keyword order. `already_shown` is always empty for the morning slot.
+Topics follow keyword order. `already_shown` holds the titles of stories seen in the last 48 hours (most recent first, up to 60), for every slot. Articles matching a seen story's normalized URL or title are already dropped before the call (`dropSeen` in `src/digest/seen.ts`); if none remain, `generateDigest` returns `nothing-new` without calling the LLM.
 
 ## Validation and anti-hallucination
 

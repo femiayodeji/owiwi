@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Redirect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CaughtUp } from '../src/components/CaughtUp';
+import { NothingNew } from '../src/components/NothingNew';
 import { Owiwi, type OwiwiEmotion } from '../src/components/Owiwi';
 import { Pager } from '../src/components/Pager';
 import { PressScale } from '../src/components/PressScale';
@@ -23,7 +23,8 @@ import { SlotSwitcher } from '../src/components/SlotSwitcher';
 import { StreakFlame } from '../src/components/StreakFlame';
 import { Button, useUi } from '../src/components/ui';
 import { STEP_LABEL, type GenerationStep } from '../src/digest/generate';
-import { isLateNight, SLOT_LABEL } from '../src/digest/slot';
+import { resumeIndex } from '../src/digest/seen';
+import { isLateNight, otherSlot, SLOT_LABEL } from '../src/digest/slot';
 import { getDb } from '../src/db/client';
 import { saveSettings } from '../src/db/settings';
 import { radius, space, THEME_MODE_OPTIONS, type ThemeMode } from '../src/lib/theme';
@@ -34,7 +35,7 @@ import { useFeed, type SlotState } from '../src/store/feed';
 const STEPS: GenerationStep[] = ['fetching', 'writing', 'saving'];
 
 export default function Feed() {
-  const { settings, activeSlot, viewSlot, slots, streak, setViewSlot, generate, completeDay, clearRead } = useFeed();
+  const { settings, activeSlot, viewSlot, slots, streak, seen, setViewSlot, generate, completeDay, markSeen } = useFeed();
   const [index, setIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -48,9 +49,14 @@ export default function Feed() {
   const total = state.cards.length;
 
   const confirmRegenerate = () => setConfirmOpen(true);
+  const switchSlot = (slot: Slot) => {
+    setIndex(0);
+    setViewSlot(slot);
+  };
+  const other = otherSlot(viewSlot);
 
   const menuActions: SheetAction[] = [
-    ...(state.status === 'ready' || state.status === 'caught-up'
+    ...(state.status === 'ready'
       ? [
           {
             key: 'regenerate',
@@ -92,10 +98,7 @@ export default function Feed() {
           <SlotSwitcher
             value={viewSlot}
             activeSlot={activeSlot}
-            onChange={(slot) => {
-              setIndex(0);
-              setViewSlot(slot);
-            }}
+            onChange={switchSlot}
           />
         </View>
         <PressScale
@@ -111,13 +114,8 @@ export default function Feed() {
         <View style={styles.progress}>
           <ProgressBar progress={Math.min(index + 1, total) / total} label={index < total ? `${index + 1} / ${total}` : 'Done'} />
         </View>
-      ) : state.status === 'caught-up' ? (
-        // Same bar, full: no layout jump when the finished digest is cleared and CaughtUp takes over.
-        <View style={styles.progress}>
-          <ProgressBar progress={1} label="Done" />
-        </View>
       ) : null}
-      {(state.status === 'ready' || state.status === 'caught-up') && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
+      {state.status === 'ready' && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
       {state.status === 'ready' && state.failedKeywords.length > 0 ? (
         <Text style={[ui.muted, styles.banner]}>Couldn't reach news for: {state.failedKeywords.join(', ')}</Text>
       ) : null}
@@ -130,11 +128,19 @@ export default function Feed() {
           streakLost={streak.lost}
           streakCurrent={streak.current}
           streakDoneToday={streak.doneToday}
+          morningTime={settings.morning_time}
+          eveningTime={settings.evening_time}
+          initialIndex={resumeIndex(state.cards, seen)}
+          readAgainSlot={slots[other].status === 'ready' && slots[other].cards.length > 0 ? other : null}
+          onReadAgain={() => switchSlot(other)}
           onGenerate={() => void generate(viewSlot)}
           onRegenerate={confirmRegenerate}
-          onIndex={setIndex}
+          onIndex={(i) => {
+            setIndex(i);
+            const card = state.cards[i];
+            if (card) markSeen(card);
+          }}
           onReachedEnd={() => void completeDay(viewSlot)}
-          onCompletionShown={(digestId) => void clearRead(viewSlot, digestId)}
         />
       </View>
 
@@ -173,11 +179,15 @@ function SlotBody(props: {
   streakLost: boolean;
   streakCurrent: number;
   streakDoneToday: boolean;
+  morningTime: string;
+  eveningTime: string;
+  initialIndex: number;
+  readAgainSlot: Slot | null;
+  onReadAgain: () => void;
   onGenerate: () => void;
   onRegenerate: () => void;
   onIndex: (i: number) => void;
   onReachedEnd: () => void;
-  onCompletionShown: (digestId: string) => void;
 }) {
   const { slot, isActive, state } = props;
   const ui = useUi();
@@ -205,20 +215,23 @@ function SlotBody(props: {
         slot={slot}
         streak={props.streakCurrent}
         onIndexChange={props.onIndex}
+        initialIndex={props.initialIndex}
         onReachedEnd={props.onReachedEnd}
-        onCompletionShown={() => props.onCompletionShown(state.cards[0].digestId)}
         onPullToRegenerate={props.onRegenerate}
       />
     );
   }
 
-  if (state.status === 'caught-up') {
+  if (state.status === 'nothing-new') {
     return (
-      <CaughtUp
-        slot={slot}
+      <NothingNew
         streak={props.streakCurrent}
         doneToday={props.streakDoneToday}
-        onRegenerate={props.onRegenerate}
+        morningTime={props.morningTime}
+        eveningTime={props.eveningTime}
+        readAgainSlot={props.readAgainSlot}
+        onReadAgain={props.onReadAgain}
+        onCheckAgain={props.onGenerate}
       />
     );
   }

@@ -1,8 +1,10 @@
-// Shown for a slot whose digest the reader already finished (its cards were cleared).
+// Shown when a slot has no digest because the reader has already seen every
+// story the news sources returned. Checking again costs no tokens unless
+// something new turns up.
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
-import { isLateNight } from '../digest/slot';
+import { isLateNight, nextDigestLine } from '../digest/slot';
 import type { Slot } from '../llm/types';
 import { space } from '../lib/theme';
 import { makeStyles } from '../lib/useTheme';
@@ -11,37 +13,42 @@ import { StreakFlame } from './StreakFlame';
 import { Button } from './ui';
 
 interface Props {
-  slot: Slot;
   streak: number;
   doneToday: boolean;
-  /** Opens the existing regenerate confirmation (costs tokens). */
-  onRegenerate: () => void;
+  morningTime: string;
+  eveningTime: string;
+  /** The other slot, when it has a ready digest to read again. */
+  readAgainSlot: Slot | null;
+  onReadAgain: () => void;
+  onCheckAgain: () => void;
 }
 
-export function CaughtUp({ slot, streak, doneToday, onRegenerate }: Props) {
+export function NothingNew({ streak, doneToday, morningTime, eveningTime, readAgainSlot, onReadAgain, onCheckAgain }: Props) {
   const styles = useStyles();
   const reduced = useReducedMotion();
-  const late = isLateNight(new Date());
+  const now = new Date();
   const enter = (i: number) => (reduced ? undefined : FadeInDown.delay(i * 90).springify().damping(16));
 
   return (
     <View style={styles.page}>
       <Animated.View entering={enter(0)} style={styles.row}>
-        {/* The day was counted when the reader finished, so no "Streak +1" copy here; sleepy keeps its line. */}
-        <Owiwi emotion={late ? 'sleepy' : 'celebrate'} showCopy={late} />
+        <Owiwi emotion={isLateNight(now) ? 'sleepy' : 'idle'} />
       </Animated.View>
       <Animated.View entering={enter(1)} style={[styles.row, styles.flame]}>
         <StreakFlame value={streak} size="lg" highlight={doneToday} />
       </Animated.View>
       <Animated.Text entering={enter(2)} style={styles.title}>
-        You're all caught up
+        Nothing new since your last read
       </Animated.Text>
       <Animated.Text entering={enter(3)} style={styles.next}>
-        {slot === 'morning' ? 'See you this evening.' : 'See you tomorrow.'}
+        {nextDigestLine(now, morningTime, eveningTime)}
       </Animated.Text>
       <Animated.View entering={enter(4)} style={styles.actions}>
-        <Button title="Regenerate for fresh stories" variant="secondary" onPress={onRegenerate} />
-        <Text style={styles.hint}>Uses your API tokens.</Text>
+        {readAgainSlot ? (
+          <Button title={`Read your ${readAgainSlot} digest again`} variant="secondary" onPress={onReadAgain} />
+        ) : null}
+        <Button title="Check again" variant="secondary" onPress={onCheckAgain} />
+        <Text style={styles.hint}>Free unless something new turns up.</Text>
         <Pressable
           accessibilityRole="link"
           hitSlop={{ left: 12, right: 12 }}

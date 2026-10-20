@@ -26,7 +26,7 @@ Owiwi is a single Expo app with no server. Screens in `app/` are thin; logic liv
 | `db/` | `client.ts`, `migrations.ts`, `queries.ts`, `settings.ts` | `migrations.ts`, `settings.ts` parsing | Lazily opened shared DB (`getDb()`), migration runner, typed queries, zod-validated settings. |
 | `news/` | `types.ts`, `parse.ts`, `dedupe.ts`, `collect.ts`, `feed.ts`, `google.ts`, `bing.ts`, `publishers.ts`, `index.ts` | yes | `NewsSource` interface, RSS/Atom parsing (`fast-xml-parser`), dedupe, `collectArticles()`, the three sources, `getNewsSource()`. |
 | `llm/` | `types.ts`, `adapters/*`, `defaultModels.ts`, `presets.ts`, `prompt.ts`, `schema.ts`, `validate.ts`, `testConnection.ts`, `index.ts` | yes | `LLMProvider` interface, three adapters, prompt builders, zod schema, `generateCards()`, `testConnection()`. See [llm.md](llm.md). |
-| `digest/` | `generate.ts`, `guard.ts`, `retention.ts`, `slot.ts` | `guard.ts`, `retention.ts`, `slot.ts` | `generateDigest()` orchestration, generation decision, daily wipe, slot logic. |
+| `digest/` | `generate.ts`, `guard.ts`, `retention.ts`, `seen.ts`, `slot.ts` | `guard.ts`, `retention.ts`, `seen.ts`, `slot.ts` | `generateDigest()` orchestration, generation decision, daily wipe and 48-hour seen-story prune, seen-story filter and resume page, slot logic. |
 | `streak/` | `streak.ts`, `index.ts` | yes | `computeStreak()`, `streakLost()`. |
 | `notifications/` | `copy.ts`, `plan.ts`, `schedule.ts`, `deeplink.ts`, `index.ts` | `copy.ts`, `plan.ts` | Rotating copy, pure reminder plan, scheduling with `expo-notifications`, tap handling. |
 | `store/` | `feed.ts`, `bookmarks.ts` | no | zustand stores: `useFeed` for the feed screen, `useBookmarks` (bookmarked urls, toggle/remove/restore). |
