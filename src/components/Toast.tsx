@@ -1,7 +1,7 @@
-// Lightweight info toast. Call showToast() from anywhere; <ToastHost /> is mounted once in app/_layout.tsx.
+// Lightweight info toast, shown near the bottom of the screen. Call showToast() from anywhere; <ToastHost /> is mounted once in app/_layout.tsx.
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
-import Animated, { FadeOutUp, SlideInUp } from 'react-native-reanimated';
+import Animated, { FadeOutDown, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { haptic } from '../lib/haptics';
@@ -25,6 +25,12 @@ const HIDE_AFTER_MS = 2500;
 // Give people time to reach an action like Undo.
 const HIDE_WITH_ACTION_MS = 4500;
 let nextId = 1;
+/**
+ * Distance above the bottom safe-area inset. Anchored low so the feed's top bar stays usable,
+ * and high enough to clear a full-height story card's Save / Share / Read more row
+ * (card padding + page padding + the row itself).
+ */
+const BOTTOM_OFFSET = 72;
 
 const useToast = create<ToastState>((set) => ({
   toast: null,
@@ -50,12 +56,12 @@ export function ToastHost() {
   }, [toast, hide]);
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, { top: insets.top + space.sm }]}>
+    <View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + BOTTOM_OFFSET }]}>
       {toast ? (
         <Animated.View
           key={toast.id}
-          entering={SlideInUp.springify().damping(16)}
-          exiting={FadeOutUp.duration(180)}
+          entering={SlideInDown.springify().damping(16)}
+          exiting={FadeOutDown.duration(180)}
           style={[styles.toast, toast.kind === 'warning' && styles.warning]}
         >
           <Pressable onPress={hide} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.row}>

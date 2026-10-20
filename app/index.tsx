@@ -34,7 +34,7 @@ import { useFeed, type SlotState } from '../src/store/feed';
 const STEPS: GenerationStep[] = ['fetching', 'writing', 'saving'];
 
 export default function Feed() {
-  const { settings, activeSlot, viewSlot, slots, streak, setViewSlot, generate, completeDay } = useFeed();
+  const { settings, activeSlot, viewSlot, slots, streak, setViewSlot, generate, completeDay, clearRead } = useFeed();
   const [index, setIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -61,16 +61,16 @@ export default function Feed() {
           },
         ]
       : []),
+    { key: 'bookmarks', label: 'Bookmarks', description: 'Stories you saved', icon: '★', onPress: () => router.push('/bookmarks') },
     {
       key: 'appearance',
       label: `Appearance: ${themeLabel(settings.theme_mode)}`,
       icon: '◐',
       onPress: () => setAppearanceOpen(true),
     },
-    { key: 'bookmarks', label: 'Bookmarks', description: 'Stories you saved', icon: '★', onPress: () => router.push('/bookmarks') },
     { key: 'keywords', label: 'Keywords', icon: '#', onPress: () => router.push('/settings/keywords') },
     { key: 'providers', label: 'LLM provider', icon: '✦', onPress: () => router.push('/settings/providers') },
-    { key: 'schedule', label: 'Schedule & reminders', icon: '⏰', onPress: () => router.push('/settings/schedule') },
+    { key: 'schedule', label: 'Schedule & reminders', icon: '◷', onPress: () => router.push('/settings/schedule') },
     { key: 'settings', label: 'All settings', icon: '⚙', onPress: () => router.push('/settings') },
   ];
 
@@ -111,6 +111,11 @@ export default function Feed() {
         <View style={styles.progress}>
           <ProgressBar progress={Math.min(index + 1, total) / total} label={index < total ? `${index + 1} / ${total}` : 'Done'} />
         </View>
+      ) : state.status === 'caught-up' ? (
+        // Same bar, full: no layout jump when the finished digest is cleared and CaughtUp takes over.
+        <View style={styles.progress}>
+          <ProgressBar progress={1} label="Done" />
+        </View>
       ) : null}
       {(state.status === 'ready' || state.status === 'caught-up') && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
       {state.status === 'ready' && state.failedKeywords.length > 0 ? (
@@ -129,6 +134,7 @@ export default function Feed() {
           onRegenerate={confirmRegenerate}
           onIndex={setIndex}
           onReachedEnd={() => void completeDay(viewSlot)}
+          onCompletionShown={(digestId) => void clearRead(viewSlot, digestId)}
         />
       </View>
 
@@ -171,6 +177,7 @@ function SlotBody(props: {
   onRegenerate: () => void;
   onIndex: (i: number) => void;
   onReachedEnd: () => void;
+  onCompletionShown: (digestId: string) => void;
 }) {
   const { slot, isActive, state } = props;
   const ui = useUi();
@@ -199,6 +206,7 @@ function SlotBody(props: {
         streak={props.streakCurrent}
         onIndexChange={props.onIndex}
         onReachedEnd={props.onReachedEnd}
+        onCompletionShown={() => props.onCompletionShown(state.cards[0].digestId)}
         onPullToRegenerate={props.onRegenerate}
       />
     );

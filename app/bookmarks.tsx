@@ -4,7 +4,7 @@ import { FlatList, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
 import { Owiwi } from '../src/components/Owiwi';
-import { ActionLink, ReadMoreAction, ShareAction } from '../src/components/StoryActions';
+import { ACTION_ROW_BLEED, ActionLink, ReadMoreAction, ShareAction } from '../src/components/StoryActions';
 import { showToast } from '../src/components/Toast';
 import { Button, useUi } from '../src/components/ui';
 import { getDb } from '../src/db/client';
@@ -70,7 +70,7 @@ export default function Bookmarks() {
             Tap ☆ Save on any story in your digest to keep it here. Saved stories stay after the daily clean-up.
           </Text>
           <View style={styles.emptyAction}>
-            <Button title="Back to my digest" variant="secondary" onPress={() => router.back()} />
+            <Button title="Back to my digest" variant="secondary" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
           </View>
         </Animated.View>
       </View>
@@ -118,7 +118,7 @@ function BookmarkItem({ bookmark: b, index, onRemove }: { bookmark: Bookmark; in
       <Text style={styles.summary}>{b.summary}</Text>
       {meta ? <Text style={styles.meta}>{meta}</Text> : null}
       <View style={styles.actions}>
-        <ActionLink label="Remove" glyph="★" selected accessibilityLabel={`Remove bookmark: ${b.title}`} onPress={onRemove} />
+        <ActionLink label="Remove" glyph="★" highlight accessibilityLabel={`Remove bookmark: ${b.title}`} onPress={onRemove} />
         <ShareAction story={b} />
         <View style={{ flex: 1 }} />
         <ReadMoreAction url={b.url} title={b.title} />
@@ -164,6 +164,12 @@ const useStyles = makeStyles((t) => {
       marginTop: space.sm,
     },
     meta: { color: t.colors.textMuted, fontSize: 13, marginTop: space.sm },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+      marginTop: space.md + ACTION_ROW_BLEED,
+      marginBottom: ACTION_ROW_BLEED,
+    },
   } as const;
 });

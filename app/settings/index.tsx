@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -78,18 +78,21 @@ export default function SettingsHome() {
       <Text style={[ui.muted, { textAlign: 'center' }]}>
         Owiwi runs entirely on this device. No accounts, no servers, no analytics.
       </Text>
-      <Text style={[ui.muted, styles.credit]}>
-        Made by{' '}
-        <Text
-          style={styles.creditLink}
-          accessibilityRole="link"
-          accessibilityHint="Opens the author's website"
-          onPress={() => void WebBrowser.openBrowserAsync(AUTHOR_URL)}
-        >
-          {AUTHOR}
-        </Text>
-        {APP_VERSION ? ` · v${APP_VERSION}` : ''}
-      </Text>
+      {/* The whole line is the tap target, so the link is 44pt tall rather than one text line. */}
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={`Made by ${AUTHOR}`}
+        accessibilityHint="Opens the author's website"
+        onPress={() => void WebBrowser.openBrowserAsync(AUTHOR_URL)}
+        style={styles.creditRow}
+      >
+        {({ pressed }) => (
+          <Text style={[ui.muted, styles.credit, pressed && styles.creditPressed]}>
+            Made by <Text style={styles.creditLink}>{AUTHOR}</Text>
+            {APP_VERSION ? ` · v${APP_VERSION}` : ''}
+          </Text>
+        )}
+      </Pressable>
     </ScrollView>
   );
 }
@@ -127,6 +130,9 @@ const useStyles = makeStyles(({ colors }) => ({
   swatch: { width: 22, height: 22, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong },
   sample: { fontSize: 20, fontWeight: '700', color: colors.navy, marginLeft: space.xs },
   sampleName: { flex: 1, fontSize: 13, color: colors.textMuted },
-  credit: { textAlign: 'center', fontSize: 13, marginTop: space.md },
+  // 44pt row; the small top margin keeps the visual gap to the privacy line at about space.md.
+  creditRow: { minHeight: 44, justifyContent: 'center', alignSelf: 'center', paddingHorizontal: space.sm, marginTop: space.xs },
+  credit: { textAlign: 'center', fontSize: 13 },
+  creditPressed: { opacity: 0.6 },
   creditLink: { color: colors.indigo, fontWeight: '600' },
 }));

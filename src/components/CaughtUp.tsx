@@ -1,5 +1,6 @@
 // Shown for a slot whose digest the reader already finished (its cards were cleared).
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { isLateNight } from '../digest/slot';
 import type { Slot } from '../llm/types';
@@ -20,12 +21,14 @@ interface Props {
 export function CaughtUp({ slot, streak, doneToday, onRegenerate }: Props) {
   const styles = useStyles();
   const reduced = useReducedMotion();
+  const late = isLateNight(new Date());
   const enter = (i: number) => (reduced ? undefined : FadeInDown.delay(i * 90).springify().damping(16));
 
   return (
     <View style={styles.page}>
       <Animated.View entering={enter(0)} style={styles.row}>
-        <Owiwi emotion={isLateNight(new Date()) ? 'sleepy' : 'celebrate'} showCopy />
+        {/* The day was counted when the reader finished, so no "Streak +1" copy here; sleepy keeps its line. */}
+        <Owiwi emotion={late ? 'sleepy' : 'celebrate'} showCopy={late} />
       </Animated.View>
       <Animated.View entering={enter(1)} style={[styles.row, styles.flame]}>
         <StreakFlame value={streak} size="lg" highlight={doneToday} />
@@ -39,6 +42,14 @@ export function CaughtUp({ slot, streak, doneToday, onRegenerate }: Props) {
       <Animated.View entering={enter(4)} style={styles.actions}>
         <Button title="Regenerate for fresh stories" variant="secondary" onPress={onRegenerate} />
         <Text style={styles.hint}>Uses your API tokens.</Text>
+        <Pressable
+          accessibilityRole="link"
+          hitSlop={{ left: 12, right: 12 }}
+          onPress={() => router.push('/bookmarks')}
+          style={styles.linkRow}
+        >
+          {({ pressed }) => <Text style={[styles.link, pressed && styles.linkPressed]}>View bookmarks</Text>}
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -52,4 +63,7 @@ const useStyles = makeStyles((t) => ({
   next: { marginTop: space.sm, fontSize: 16, color: t.colors.textMuted, textAlign: 'center' },
   actions: { marginTop: space.lg, alignSelf: 'stretch', alignItems: 'stretch', gap: space.sm },
   hint: { fontSize: 13, color: t.colors.textFaint, textAlign: 'center' },
+  linkRow: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm },
+  link: { fontSize: 14, fontWeight: '600', color: t.colors.indigo },
+  linkPressed: { opacity: 0.6 },
 }));

@@ -25,24 +25,30 @@ interface Props {
   cards: Card[];
   slot: Slot;
   streak: number;
-  /** Fires once when the last story card is reached. */
+  /** Fires once when the last story card is reached (counts the streak). */
   onReachedEnd: () => void;
+  /**
+   * Fires once when the completion card (the page after the last story) is
+   * reached: the read stories can be dropped.
+   */
+  onCompletionShown: () => void;
   onIndexChange?: (index: number) => void;
   onPullToRegenerate: () => void;
 }
 
-export function Pager({ cards, slot, streak, onReachedEnd, onIndexChange, onPullToRegenerate }: Props) {
+export function Pager({ cards, slot, streak, onReachedEnd, onCompletionShown, onIndexChange, onPullToRegenerate }: Props) {
   const theme = useTheme();
   const [height, setHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [swiped, setSwiped] = useState(false);
   const items: Item[] = [...cards.map((card) => ({ kind: 'card' as const, card })), { kind: 'done' as const }];
   const firedEnd = useRef(false);
+  const firedCompletion = useRef(false);
   const lastIndex = useRef(0);
 
   // Must be stable for FlatList; read latest props via refs.
-  const latest = useRef({ onReachedEnd, onIndexChange, total: cards.length });
-  latest.current = { onReachedEnd, onIndexChange, total: cards.length };
+  const latest = useRef({ onReachedEnd, onCompletionShown, onIndexChange, total: cards.length });
+  latest.current = { onReachedEnd, onCompletionShown, onIndexChange, total: cards.length };
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ListViewToken[] }) => {
     const index = viewableItems[0]?.index;
     if (index == null) return;
@@ -56,6 +62,12 @@ export function Pager({ cards, slot, streak, onReachedEnd, onIndexChange, onPull
     if (index >= latest.current.total - 1 && !firedEnd.current) {
       firedEnd.current = true;
       latest.current.onReachedEnd();
+    }
+    // Clear only once the reader is past the last story, so returning from
+    // "Read more" or Share on that story doesn't swap the feed to caught-up.
+    if (index >= latest.current.total && !firedCompletion.current) {
+      firedCompletion.current = true;
+      latest.current.onCompletionShown();
     }
   }).current;
 

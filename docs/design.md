@@ -60,16 +60,16 @@ Rules: use the brand artwork only. Do not redraw the owl, substitute emojis, or 
 | | happened and why it matters.         | |
 | |                                      | |
 | | Reuters · 3h ago                     | |  source + relative time
-| | ☆ Save  ⇪ Share         Read more -> | |  secondary actions
+| | ☆ Save  Share           Read more -> | |  secondary actions
 | +--------------------------------------+ |
 +------------------------------------------+
 ```
 
 - **Pager:** full-screen vertical `FlatList` with `pagingEnabled`, `getItemLayout`, `windowSize={3}`. Cards enter with a Reanimated `FadeInDown`. Pull down on the cards to regenerate (with confirmation).
 - **Slot tabs:** the selected tab is filled indigo; the non-active, unselected slot is muted (45% opacity).
-- **Menu (`...`):** Regenerate digest (when ready), Appearance, Bookmarks, Keywords, LLM provider, Schedule, All settings.
+- **Menu (`...`):** Regenerate digest (when ready or caught up), Bookmarks, Appearance, Keywords, LLM provider, Schedule, All settings. Content first, then settings. Icons are monochrome text glyphs (↻ ★ ◐ # ✦ ◷ ⚙), no colour emoji.
 - **Read more:** a text link that opens `expo-web-browser`. Deliberately not a primary button.
-- **Save / Share:** muted text actions left of Read more (`src/components/StoryActions.tsx`). Save toggles an outlined ☆ to a filled indigo ★ and shows a toast ("Saved to Bookmarks." with a View action). Share uses React Native's `Share` sheet with the message from `formatShareMessage()` (`src/lib/share.ts`).
+- **Save / Share:** muted text actions left of Read more (`src/components/StoryActions.tsx`). Each action is a 44pt-tall touch target with horizontal-only hit slop, so neighbours never overlap. Save toggles an outlined ☆ to a filled indigo ★ and shows a toast ("Saved to Bookmarks." with a View action). Toasts sit near the bottom, above the safe-area inset and clear of a full card's action row, so the top bar stays usable. Share uses React Native's `Share` sheet with the message from `formatShareMessage()` (`src/lib/share.ts`).
 - **Bookmarks screen (`app/bookmarks.tsx`):** saved stories as compact cards, newest first, each with Remove (toast with Undo), Share and Read more. Empty state: idle Owiwi with its brand copy and a hint to tap Save.
 - **Completion card:** after the last story. Celebrating owl, "N days in a row", and "See you this evening." (morning) or "See you tomorrow." (evening). Reaching the last story card records the streak.
 - **Thinking state:** owl plus the three steps "Fetching headlines", "Writing your gist", "Saving your digest", each marked done, current or pending.

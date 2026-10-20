@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { getDb } from '../db/client';
 import { clearDigest, getCards, getDigest, listStreakDates, recordStreakDay, type Card } from '../db/queries';
 import { DEFAULT_SETTINGS, loadSettings, type Settings } from '../db/settings';
-import { caughtUpOnLeave, slotStatusFor } from '../digest/cleared';
+import { caughtUpOnLeave, shouldKeepSlot, slotStatusFor } from '../digest/cleared';
 import { generateDigest, isGenerating, type GenerationStep } from '../digest/generate';
 import { wipeStale } from '../digest/retention';
 import { activeSlot as computeActiveSlot } from '../digest/slot';
@@ -22,9 +22,9 @@ export interface SlotState {
   error: string | null;
   failedKeywords: string[];
   /**
-   * The reader finished this digest and it was cleared in the DB, but its cards
-   * stay in memory so the completion card can celebrate. Leaving the slot
-   * switches it to 'caught-up'.
+   * The reader reached the completion card and the digest was cleared in the
+   * DB, but its cards stay in memory so the pager stays put. Leaving the slot
+   * (or a new day) switches it to 'caught-up'.
    */
   cleared: boolean;
 }
@@ -57,7 +57,10 @@ interface FeedStore {
   reloadSettings(): Promise<void>;
   setViewSlot(slot: Slot): void;
   generate(slot: Slot, force?: boolean): Promise<void>;
+  /** Counts the day for the streak. Fires when the last story card is reached. */
   completeDay(slot: Slot): Promise<void>;
+  /** Drops a read digest from the DB. Fires when the completion card is reached. */
+  clearRead(slot: Slot, digestId: string): Promise<void>;
 }
 
 const hasContent = (s: SlotState): boolean =>
@@ -121,16 +124,24 @@ export const useFeed = create<FeedStore>((set, get) => {
         loadSlot(today, 'evening'),
         loadStreak(today),
       ]);
-      // Don't clobber an in-flight generation in this process.
+      const viewSlot = dayChanged || prev.activeSlot !== active || !prev.ready ? active : prev.viewSlot;
+      // Don't clobber an in-flight generation in this process, or a finished
+      // digest the reader is still on.
       const keep = (slot: Slot, next: SlotState) =>
-        !dayChanged && prev.slots[slot].status === 'generating' && prev.slots[slot].step ? prev.slots[slot] : next;
+        shouldKeepSlot(prev.slots[slot], next, {
+          dayChanged,
+          isViewSlot: slot === viewSlot,
+          generatingHere: isGenerating(today, slot),
+        })
+          ? prev.slots[slot]
+          : next;
 
       set({
         ready: true,
         today,
         settings,
         activeSlot: active,
-        viewSlot: dayChanged || prev.activeSlot !== active || !prev.ready ? active : prev.viewSlot,
+        viewSlot,
         slots: { morning: keep('morning', morning), evening: keep('evening', evening) },
         streak,
         justCompleted: dayChanged ? false : prev.justCompleted,
@@ -199,10 +210,16 @@ export const useFeed = create<FeedStore>((set, get) => {
         set({ streak: await loadStreak(today), justCompleted: true });
         await cancelTodayNudge();
       }
-      // After the streak: drop the read stories. The cards stay in memory so the
-      // completion card keeps celebrating; the slot shows caught-up next time.
-      const digestId = get().slots[slot].cards[0]?.digestId;
-      if (digestId && (await clearDigest(db, digestId))) patchSlot(slot, { cleared: true });
+    },
+
+    async clearRead(slot, digestId) {
+      if (!(await clearDigest(await getDb(), digestId))) return;
+      const { viewSlot, slots } = get();
+      // Only touch the slot if it still shows this digest (not regenerated meanwhile).
+      if (slots[slot].status !== 'ready' || slots[slot].cards[0]?.digestId !== digestId) return;
+      // The cards stay in memory so the completion card keeps celebrating; if the
+      // reader already switched away, go straight to caught-up.
+      patchSlot(slot, viewSlot === slot ? { cleared: true } : emptySlot('caught-up'));
     },
   };
 });

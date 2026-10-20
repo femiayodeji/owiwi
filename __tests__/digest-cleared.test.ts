@@ -7,6 +7,7 @@ import {
   parseShownTitles,
   resolveShownTitles,
   serializeShownTitles,
+  shouldKeepSlot,
   slotStatusFor,
   statusAfterFailure,
 } from '../src/digest/cleared';
@@ -79,6 +80,38 @@ describe('caughtUpOnLeave', () => {
     expect(caughtUpOnLeave({ status: 'ready', cleared: true })).toBe(true);
     expect(caughtUpOnLeave({ status: 'ready', cleared: false })).toBe(false);
     expect(caughtUpOnLeave({ status: 'generating', cleared: true })).toBe(false);
+  });
+});
+
+describe('shouldKeepSlot', () => {
+  const ctx = { dayChanged: false, isViewSlot: true, generatingHere: false };
+  const finished = { status: 'ready', cleared: true, cards: [{}] };
+  const caughtUp = { status: 'caught-up' };
+
+  it('keeps a live generation even before its first step', () => {
+    const prev = { status: 'generating', cleared: false, cards: [] };
+    expect(shouldKeepSlot(prev, { status: 'generating' }, { ...ctx, generatingHere: true })).toBe(true);
+    expect(shouldKeepSlot(prev, { status: 'none' }, { ...ctx, isViewSlot: false, generatingHere: true })).toBe(true);
+  });
+  it('drops a generating slot with no live run (orphan)', () => {
+    const prev = { status: 'generating', cleared: false, cards: [] };
+    expect(shouldKeepSlot(prev, { status: 'none' }, ctx)).toBe(false);
+  });
+  it('keeps a just-finished digest the reader is still viewing', () => {
+    expect(shouldKeepSlot(finished, caughtUp, ctx)).toBe(true);
+  });
+  it('swaps a just-finished digest to caught-up once it is not the viewed slot', () => {
+    expect(shouldKeepSlot(finished, caughtUp, { ...ctx, isViewSlot: false })).toBe(false);
+  });
+  it('never keeps across a day change', () => {
+    expect(shouldKeepSlot(finished, caughtUp, { ...ctx, dayChanged: true })).toBe(false);
+    const gen = { status: 'generating', cleared: false, cards: [] };
+    expect(shouldKeepSlot(gen, { status: 'none' }, { ...ctx, dayChanged: true, generatingHere: true })).toBe(false);
+  });
+  it('takes the DB state for uncleared or empty slots', () => {
+    expect(shouldKeepSlot({ status: 'ready', cleared: false, cards: [{}] }, { status: 'ready' }, ctx)).toBe(false);
+    expect(shouldKeepSlot({ status: 'ready', cleared: true, cards: [] }, caughtUp, ctx)).toBe(false);
+    expect(shouldKeepSlot(finished, { status: 'none' }, ctx)).toBe(false);
   });
 });
 

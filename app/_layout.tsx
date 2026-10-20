@@ -10,6 +10,7 @@ import { configureNotifications, topUpReminders, useNotificationDeepLink } from 
 import { useFeed } from '../src/store/feed';
 import { Button, useUi } from '../src/components/ui';
 import { ToastHost } from '../src/components/Toast';
+import { Owiwi } from '../src/components/Owiwi';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -44,6 +45,8 @@ async function setRootBackground(color: string): Promise<void> {
 
 export default function RootLayout() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  // A user-started retry has no native splash in front of it, so its loading view shows the owl.
+  const [retrying, setRetrying] = useState(false);
   const refresh = useFeed((s) => s.refresh);
   const theme = useTheme();
   const ui = useUi();
@@ -100,14 +103,33 @@ export default function RootLayout() {
   if (state === 'error') {
     return (
       <View style={[ui.screen, { justifyContent: 'center', padding: 24, gap: 16 }]}>
-        <Text style={ui.h2}>Owiwi couldn't start</Text>
-        <Text style={ui.muted}>Your saved news took too long to load. Try again, or restart the app.</Text>
-        <Button title="Try again" onPress={() => void boot()} />
+        <Owiwi emotion="sad" />
+        <Text style={[ui.h2, { textAlign: 'center' }]}>Owiwi couldn't start</Text>
+        <Text style={[ui.muted, { textAlign: 'center' }]}>
+          Something got stuck while opening your news. Your keywords, bookmarks and streak are safe. Try again, or restart
+          the app.
+        </Text>
+        <Button
+          title="Try again"
+          onPress={() => {
+            setRetrying(true);
+            void boot();
+          }}
+        />
         <StatusBar style={theme.dark ? 'light' : 'dark'} />
       </View>
     );
   }
-  if (state === 'loading') return <View style={ui.screen} />;
+  if (state === 'loading') {
+    // First boot sits behind the native splash: keep a plain view in its background colour to avoid a flash.
+    if (!retrying) return <View style={ui.screen} />;
+    return (
+      <View style={[ui.screen, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Owiwi emotion="thinking" />
+        <StatusBar style={theme.dark ? 'light' : 'dark'} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider>

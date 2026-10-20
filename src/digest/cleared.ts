@@ -73,3 +73,29 @@ export function statusAfterFailure(hasCards: boolean, cleared: boolean): 'ready'
 export function caughtUpOnLeave(s: { status: string; cleared: boolean }): boolean {
   return s.cleared && s.status === 'ready';
 }
+
+export interface KeepContext {
+  /** The local date rolled over since the previous refresh. */
+  dayChanged: boolean;
+  /** The slot is the one on screen after this refresh. */
+  isViewSlot: boolean;
+  /** A generation for (today, slot) is running in this process. */
+  generatingHere: boolean;
+}
+
+/**
+ * True when refresh() should keep the in-memory slot instead of the state just
+ * read from the DB: a live generation (even before its first step is reported),
+ * or a just-finished digest the reader is still looking at (its cards stay in
+ * memory until they leave the slot, so a refresh after "Read more" or Share
+ * doesn't yank the story away).
+ */
+export function shouldKeepSlot(
+  prev: { status: string; cleared: boolean; cards: readonly unknown[] },
+  next: { status: string },
+  ctx: KeepContext,
+): boolean {
+  if (ctx.dayChanged) return false;
+  if (prev.status === 'generating' && ctx.generatingHere) return true;
+  return ctx.isViewSlot && caughtUpOnLeave(prev) && prev.cards.length > 0 && next.status === 'caught-up';
+}
