@@ -1,11 +1,11 @@
-// Lightweight info toast, shown near the bottom of the screen. Call showToast() from anywhere; <ToastHost /> is mounted once in app/_layout.tsx.
+// Minimal toast: a small inverted pill near the bottom of the screen. Call showToast() from anywhere; <ToastHost /> is mounted once in app/_layout.tsx.
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
-import Animated, { FadeOutDown, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { haptic } from '../lib/haptics';
-import { radius, space } from '../lib/theme';
+import { space } from '../lib/theme';
 import { makeStyles } from '../lib/useTheme';
 
 export type ToastKind = 'info' | 'warning';
@@ -21,9 +21,9 @@ interface ToastState {
   hide: () => void;
 }
 
-const HIDE_AFTER_MS = 2500;
+const HIDE_AFTER_MS = 2000;
 // Give people time to reach an action like Undo.
-const HIDE_WITH_ACTION_MS = 4500;
+const HIDE_WITH_ACTION_MS = 4000;
 let nextId = 1;
 /**
  * Distance above the bottom safe-area inset. Anchored low so the feed's top bar stays usable,
@@ -58,22 +58,14 @@ export function ToastHost() {
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + BOTTOM_OFFSET }]}>
       {toast ? (
-        <Animated.View
-          key={toast.id}
-          entering={SlideInDown.springify().damping(16)}
-          exiting={FadeOutDown.duration(180)}
-          style={[styles.toast, toast.kind === 'warning' && styles.warning]}
-        >
+        <Animated.View key={toast.id} entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={styles.pill}>
           <Pressable onPress={hide} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.row}>
-            <View style={[styles.dot, toast.kind === 'warning' && styles.dotWarning]}>
-              <Text style={styles.dotText}>{toast.kind === 'warning' ? '!' : 'i'}</Text>
-            </View>
             <Text style={styles.text}>{toast.message}</Text>
             {toast.action ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={toast.action.label}
-                hitSlop={10}
+                hitSlop={12}
                 onPress={() => {
                   const run = toast.action?.onPress;
                   hide();
@@ -91,28 +83,11 @@ export function ToastHost() {
   );
 }
 
+// Inverted colours (navy is the theme's text colour, bg its background) so the pill reads in every theme.
 const useStyles = makeStyles((t) => ({
   host: { position: 'absolute', left: space.md, right: space.md, alignItems: 'center', zIndex: 1000, elevation: 1000 },
-  toast: {
-    alignSelf: 'stretch',
-    maxWidth: 480,
-    backgroundColor: t.colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: t.colors.border,
-    borderBottomWidth: 3,
-    borderBottomColor: t.colors.borderStrong,
-    shadowColor: t.colors.shadow,
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
-  },
-  warning: { borderColor: t.colors.warning, borderBottomColor: t.colors.warning },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: space.md },
-  dot: { width: 26, height: 26, borderRadius: 13, backgroundColor: t.colors.indigo, alignItems: 'center', justifyContent: 'center' },
-  dotWarning: { backgroundColor: t.colors.warning },
-  dotText: { color: t.colors.onPrimary, fontWeight: '900', fontSize: 14 },
-  text: { flex: 1, fontSize: 15, color: t.colors.navy, fontWeight: '600', lineHeight: 20 },
-  action: { fontSize: 15, color: t.colors.indigo, fontWeight: '800' },
+  pill: { maxWidth: 420, backgroundColor: t.colors.navy, borderRadius: 999, elevation: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 10, paddingHorizontal: 18 },
+  text: { flexShrink: 1, fontSize: 14, color: t.colors.bg, fontWeight: '500' },
+  action: { fontSize: 14, color: t.colors.bg, fontWeight: '800' },
 }));

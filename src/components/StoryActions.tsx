@@ -70,9 +70,9 @@ export function SaveAction({ story }: { story: BookmarkSource }) {
           .then((now) => {
             if (now) {
               haptic.success();
-              showToast('Saved to Bookmarks.', 'info', { label: 'View', onPress: () => router.push('/bookmarks') });
+              showToast('Saved', 'info', { label: 'View', onPress: () => router.push('/bookmarks') });
             } else {
-              showToast('Removed from Bookmarks.');
+              showToast('Removed');
             }
           })
           .catch(() => showToast("Couldn't update your bookmarks. Try again.", 'warning'));

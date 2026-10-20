@@ -43,7 +43,7 @@ export default function Bookmarks() {
     setItems((cur) => (cur ? cur.filter((x) => x.url !== b.url) : cur));
     remove(b.url)
       .then(() =>
-        showToast('Bookmark removed.', 'info', {
+        showToast('Removed', 'info', {
           label: 'Undo',
           onPress: () => {
             void restore(b)
