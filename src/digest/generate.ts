@@ -16,6 +16,7 @@ import { getApiKey } from '../lib/secureStore';
 import type { Slot } from '../llm/types';
 import { buildSystemPrompt, buildUserPrompt, createProvider, generateCards } from '../llm';
 import { collectArticles, getNewsSource } from '../news';
+import { statusAfterFailure } from './cleared';
 import { decideGeneration } from './guard';
 import { wipeStale } from './retention';
 
@@ -92,7 +93,7 @@ async function run(db: Db, { date, slot, force = false, onStep, signal }: Genera
     );
 
     if (articles.length === 0) {
-      await restoreOrDiscard(db, digestId, previousStatus === null);
+      await restoreOrDiscard(db, digestId, previousStatus === null, date, slot);
       return { kind: 'empty', failedKeywords };
     }
 
@@ -112,18 +113,24 @@ async function run(db: Db, { date, slot, force = false, onStep, signal }: Genera
     await completeDigest(db, digestId, provider, articles, cards);
     return { kind: 'ready', digestId, failedKeywords };
   } catch (e) {
-    await restoreOrFail(db, digestId);
+    await restoreOrFail(db, digestId, date, slot);
     throw toAppError(e);
   }
 }
 
-/** On failure: a regenerate keeps its previous cards; a first attempt is marked failed with nothing cached. */
-async function restoreOrFail(db: Db, digestId: string): Promise<void> {
+/**
+ * On failure: a regenerate keeps its previous cards (or its caught-up state if
+ * they were already read and cleared); a first attempt is marked failed with
+ * nothing cached.
+ */
+async function restoreOrFail(db: Db, digestId: string, date: string, slot: Slot): Promise<void> {
   const hasCards = (await getCards(db, digestId)).length > 0;
-  await setDigestStatus(db, digestId, hasCards ? 'ready' : 'failed');
+  const row = await getDigest(db, date, slot);
+  const cleared = row !== null && row.clearedAt !== null;
+  await setDigestStatus(db, digestId, statusAfterFailure(hasCards, cleared));
 }
 
-async function restoreOrDiscard(db: Db, digestId: string, isNew: boolean): Promise<void> {
+async function restoreOrDiscard(db: Db, digestId: string, isNew: boolean, date: string, slot: Slot): Promise<void> {
   if (isNew) await deleteDigest(db, digestId);
-  else await restoreOrFail(db, digestId);
+  else await restoreOrFail(db, digestId, date, slot);
 }

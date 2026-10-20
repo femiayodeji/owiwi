@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Redirect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CaughtUp } from '../src/components/CaughtUp';
 import { Owiwi, type OwiwiEmotion } from '../src/components/Owiwi';
 import { Pager } from '../src/components/Pager';
 import { PressScale } from '../src/components/PressScale';
@@ -49,7 +50,7 @@ export default function Feed() {
   const confirmRegenerate = () => setConfirmOpen(true);
 
   const menuActions: SheetAction[] = [
-    ...(state.status === 'ready'
+    ...(state.status === 'ready' || state.status === 'caught-up'
       ? [
           {
             key: 'regenerate',
@@ -110,7 +111,7 @@ export default function Feed() {
           <ProgressBar progress={Math.min(index + 1, total) / total} label={index < total ? `${index + 1} / ${total}` : 'Done'} />
         </View>
       ) : null}
-      {state.status === 'ready' && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
+      {(state.status === 'ready' || state.status === 'caught-up') && state.error ? <Text style={[ui.error, styles.banner]}>{state.error}</Text> : null}
       {state.status === 'ready' && state.failedKeywords.length > 0 ? (
         <Text style={[ui.muted, styles.banner]}>Couldn't reach news for: {state.failedKeywords.join(', ')}</Text>
       ) : null}
@@ -122,6 +123,7 @@ export default function Feed() {
           state={state}
           streakLost={streak.lost}
           streakCurrent={streak.current}
+          streakDoneToday={streak.doneToday}
           onGenerate={() => void generate(viewSlot)}
           onRegenerate={confirmRegenerate}
           onIndex={setIndex}
@@ -163,6 +165,7 @@ function SlotBody(props: {
   state: SlotState;
   streakLost: boolean;
   streakCurrent: number;
+  streakDoneToday: boolean;
   onGenerate: () => void;
   onRegenerate: () => void;
   onIndex: (i: number) => void;
@@ -196,6 +199,17 @@ function SlotBody(props: {
         onIndexChange={props.onIndex}
         onReachedEnd={props.onReachedEnd}
         onPullToRegenerate={props.onRegenerate}
+      />
+    );
+  }
+
+  if (state.status === 'caught-up') {
+    return (
+      <CaughtUp
+        slot={slot}
+        streak={props.streakCurrent}
+        doneToday={props.streakDoneToday}
+        onRegenerate={props.onRegenerate}
       />
     );
   }
