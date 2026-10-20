@@ -1,6 +1,15 @@
 // Full-screen vertical pager: one card per page, swipe up for the next.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, Text, View, type ListViewToken } from 'react-native';
+import {
+  FlatList,
+  PixelRatio,
+  RefreshControl,
+  Text,
+  View,
+  type ListViewToken,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -42,6 +51,29 @@ export function Pager({ cards, slot, streak, onReachedEnd, initialIndex = 0, onI
   const items: Item[] = [...cards.map((card) => ({ kind: 'card' as const, card })), { kind: 'done' as const }];
   const firedEnd = useRef(false);
   const lastIndex = useRef(startIndex);
+  const listRef = useRef<FlatList<Item>>(null);
+
+  // The page height follows the space left by the top bar, which shrinks when a
+  // banner appears (e.g. after a regenerate). Keep the current page aligned, or
+  // the view is left between two pages.
+  useEffect(() => {
+    if (height <= 0) return;
+    const id = requestAnimationFrame(() =>
+      listRef.current?.scrollToOffset({ offset: lastIndex.current * height, animated: false }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [height]);
+
+  // Safety net: if a swipe ever settles off a page boundary, finish the snap.
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (height <= 0) return;
+      const y = e.nativeEvent.contentOffset.y;
+      const target = Math.round(y / height) * height;
+      if (Math.abs(y - target) > 1) listRef.current?.scrollToOffset({ offset: target, animated: true });
+    },
+    [height],
+  );
 
   // Must be stable for FlatList; read latest props via refs.
   const latest = useRef({ onReachedEnd, onIndexChange, total: cards.length });
@@ -68,9 +100,10 @@ export function Pager({ cards, slot, streak, onReachedEnd, initialIndex = 0, onI
   );
 
   return (
-    <View style={{ flex: 1 }} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+    <View style={{ flex: 1 }} onLayout={(e) => setHeight(PixelRatio.roundToNearestPixel(e.nativeEvent.layout.height))}>
       {height > 0 ? (
         <FlatList
+          ref={listRef}
           data={items}
           extraData={activeIndex}
           keyExtractor={(item) => (item.kind === 'card' ? item.card.id : 'done')}
@@ -91,6 +124,7 @@ export function Pager({ cards, slot, streak, onReachedEnd, initialIndex = 0, onI
           maxToRenderPerBatch={2}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           onViewableItemsChanged={onViewableItemsChanged}
+          onMomentumScrollEnd={onMomentumScrollEnd}
           refreshControl={<RefreshControl refreshing={false} onRefresh={onPullToRegenerate} tintColor={theme.colors.indigo} colors={[theme.colors.indigo]} progressBackgroundColor={theme.colors.surface} />}
         />
       ) : null}
