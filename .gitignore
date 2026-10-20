@@ -42,3 +42,4 @@ yarn-error.*
 .expo-metro.log
 /android-rebuild.sh
 /prebuild.log*
+.phone-watch.log
