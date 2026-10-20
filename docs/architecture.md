@@ -11,6 +11,7 @@ Owiwi is a single Expo app with no server. Screens in `app/` are thin; logic liv
 | `app/_layout.tsx` | Root stack. Boots the app (open DB, `refresh()`; notifications are configured and topped up in the background), subscribes to `AppState`, mounts the notification deep-link hook once the Stack is up, shows a "couldn't start" screen if boot fails or times out. |
 | `app/index.tsx` | The feed: top bar (streak, slot tabs, menu), progress, and per-slot body (thinking, pager, empty, failed, or "Generate"). Redirects to onboarding until `onboarded = '1'`. |
 | `app/onboarding.tsx` | Five-step first run: welcome, keywords, times, provider, notifications. |
+| `app/bookmarks.tsx` | Saved stories (newest first) with Read more, Share, Remove + Undo; empty state with the idle owl. |
 | `app/settings/index.tsx` | Settings home with summaries. |
 | `app/settings/keywords.tsx` | Keyword CRUD (wraps `KeywordEditor`). |
 | `app/settings/providers.tsx` | Provider list: set active, edit, delete (also deletes the key). |
@@ -28,9 +29,9 @@ Owiwi is a single Expo app with no server. Screens in `app/` are thin; logic liv
 | `digest/` | `generate.ts`, `guard.ts`, `retention.ts`, `slot.ts` | `guard.ts`, `retention.ts`, `slot.ts` | `generateDigest()` orchestration, generation decision, daily wipe, slot logic. |
 | `streak/` | `streak.ts`, `index.ts` | yes | `computeStreak()`, `streakLost()`. |
 | `notifications/` | `copy.ts`, `plan.ts`, `schedule.ts`, `deeplink.ts`, `index.ts` | `copy.ts`, `plan.ts` | Rotating copy, pure reminder plan, scheduling with `expo-notifications`, tap handling. |
-| `store/` | `feed.ts` | no | zustand store `useFeed` for the feed screen. |
+| `store/` | `feed.ts`, `bookmarks.ts` | no | zustand stores: `useFeed` for the feed screen, `useBookmarks` (bookmarked urls, toggle/remove/restore). |
 | `components/` | `Owiwi.tsx`, `owiwiAssets.ts`, `Pager.tsx`, `StoryCard.tsx`, `CompletionCard.tsx`, `KeywordEditor.tsx`, `ProviderForm.tsx`, `ui.tsx` | no | UI building blocks. |
-| `lib/` | `dates.ts`, `errors.ts`, `http.ts`, `ids.ts`, `pool.ts`, `secureStore.ts`, `theme.ts` | all but `ids.ts`, `secureStore.ts` | Local dates, `AppError` and friendly messages, `fetchWithTimeout`, UUIDs, `mapWithConcurrency`, API key storage, colors. |
+| `lib/` | `dates.ts`, `errors.ts`, `http.ts`, `ids.ts`, `pool.ts`, `secureStore.ts`, `theme.ts`, `share.ts`, `shareStory.ts`, `bookmarks.ts` | all but `ids.ts`, `secureStore.ts`, `shareStory.ts` | Local dates, `AppError` and friendly messages, `fetchWithTimeout`, UUIDs, `mapWithConcurrency`, API key storage, colors, share message formatting and the RN share sheet, bookmark model helpers. |
 
 ## Opening the app
 

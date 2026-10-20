@@ -66,6 +66,7 @@ export default function Feed() {
       icon: '◐',
       onPress: () => setAppearanceOpen(true),
     },
+    { key: 'bookmarks', label: 'Bookmarks', description: 'Stories you saved', icon: '★', onPress: () => router.push('/bookmarks') },
     { key: 'keywords', label: 'Keywords', icon: '#', onPress: () => router.push('/settings/keywords') },
     { key: 'providers', label: 'LLM provider', icon: '✦', onPress: () => router.push('/settings/providers') },
     { key: 'schedule', label: 'Schedule & reminders', icon: '⏰', onPress: () => router.push('/settings/schedule') },

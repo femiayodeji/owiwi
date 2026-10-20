@@ -57,6 +57,7 @@ export default function SettingsHome() {
       <Section title="Your feed">
         <Row title="Keywords" subtitle={summary.keywords} onPress={() => router.push('/settings/keywords')} />
         <Row title="News source" subtitle={`${source} · ${settings.locale}`} onPress={() => router.push('/settings/sources')} />
+        <Row title="Bookmarks" subtitle="Stories you saved" onPress={() => router.push('/bookmarks')} />
       </Section>
       <Section title="AI">
         <Row title="LLM providers" subtitle={summary.provider} onPress={() => router.push('/settings/providers')} />

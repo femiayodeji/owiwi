@@ -59,15 +59,18 @@ Rules: use the brand artwork only. Do not redraw the owl, substitute emojis, or 
 | | Two or three sentences: what         | |  summary
 | | happened and why it matters.         | |
 | |                                      | |
-| | Reuters · 3h ago        Read more -> | |  source + relative time, secondary link
+| | Reuters · 3h ago                     | |  source + relative time
+| | ☆ Save  ⇪ Share         Read more -> | |  secondary actions
 | +--------------------------------------+ |
 +------------------------------------------+
 ```
 
 - **Pager:** full-screen vertical `FlatList` with `pagingEnabled`, `getItemLayout`, `windowSize={3}`. Cards enter with a Reanimated `FadeInDown`. Pull down on the cards to regenerate (with confirmation).
 - **Slot tabs:** the selected tab is filled indigo; the non-active, unselected slot is muted (45% opacity).
-- **Menu (`...`):** Regenerate digest (when ready), Settings.
+- **Menu (`...`):** Regenerate digest (when ready), Appearance, Bookmarks, Keywords, LLM provider, Schedule, All settings.
 - **Read more:** a text link that opens `expo-web-browser`. Deliberately not a primary button.
+- **Save / Share:** muted text actions left of Read more (`src/components/StoryActions.tsx`). Save toggles an outlined ☆ to a filled indigo ★ and shows a toast ("Saved to Bookmarks." with a View action). Share uses React Native's `Share` sheet with the message from `formatShareMessage()` (`src/lib/share.ts`).
+- **Bookmarks screen (`app/bookmarks.tsx`):** saved stories as compact cards, newest first, each with Remove (toast with Undo), Share and Read more. Empty state: idle Owiwi with its brand copy and a hint to tap Save.
 - **Completion card:** after the last story. Celebrating owl, "N days in a row", and "See you this evening." (morning) or "See you tomorrow." (evening). Reaching the last story card records the streak.
 - **Thinking state:** owl plus the three steps "Fetching headlines", "Writing your gist", "Saving your digest", each marked done, current or pending.
 - **Empty / failed / no digest:** owl, short explanation, and actions (Try again, Edit keywords, Open settings, Generate).

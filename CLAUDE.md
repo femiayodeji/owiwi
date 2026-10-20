@@ -45,7 +45,7 @@ The point is the feed. "Read more" exists but is secondary.
 - Keep today's morning and evening digests. Delete everything with `date < today`.
 - Run the wipe on app launch, on every `AppState` change to `active`, and before any generation. This also handles midnight rollover while the app stays open.
 - `DELETE FROM digests WHERE date < :today` with `ON DELETE CASCADE` on cards and articles.
-- **Never wipe** keywords, providers, settings or `streak_days`.
+- **Never wipe** keywords, providers, settings, `streak_days` or `bookmarks`.
 
 ## SQLite schema
 
@@ -107,6 +107,17 @@ CREATE TABLE streak_days (
   date TEXT PRIMARY KEY,        -- local YYYY-MM-DD
   slot TEXT NOT NULL,           -- slot that completed the day
   completed_at INTEGER NOT NULL
+);
+
+CREATE TABLE bookmarks (           -- saved stories; copies card content, no FK, never wiped
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  topic TEXT,
+  source TEXT,
+  published_at TEXT,
+  created_at INTEGER NOT NULL
 );
 
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);

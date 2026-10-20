@@ -1,6 +1,6 @@
 // Daily wipe: keep today's digests, delete everything older. Cards and articles
-// go with their digest via ON DELETE CASCADE. Keywords, providers, settings and
-// streak_days are never touched.
+// go with their digest via ON DELETE CASCADE. Keywords, providers, settings,
+// streak_days and bookmarks are never touched.
 
 export interface WipeDb {
   runAsync(source: string, ...params: string[]): Promise<{ changes: number }>;

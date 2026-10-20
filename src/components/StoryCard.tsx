@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
-import * as WebBrowser from 'expo-web-browser';
 import type { Card } from '../db/queries';
 import { relativeTime } from '../lib/dates';
-import { haptic } from '../lib/haptics';
 import { radius, space } from '../lib/theme';
 import { makeStyles } from '../lib/useTheme';
-import { PressScale } from './PressScale';
+import { useBookmarks } from '../store/bookmarks';
+import { StoryActionBar } from './StoryActions';
 
 interface Props {
   card: Card;
@@ -30,6 +29,11 @@ export function StoryCard({ card, height, active }: Props) {
 
   const shown = useSharedValue(reduced ? 1 : 0);
   const chip = useSharedValue(reduced ? 1 : 0);
+
+  // Bookmarked urls load once per process so the Save state is right on first paint.
+  useEffect(() => {
+    void useBookmarks.getState().ensureLoaded();
+  }, []);
 
   useEffect(() => {
     if (reduced) return;
@@ -68,22 +72,12 @@ export function StoryCard({ card, height, active }: Props) {
         </Text>
         <Text style={styles.summary}>{card.summary}</Text>
         <View style={styles.footer}>
-          <Text style={styles.meta} numberOfLines={1}>
-            {meta}
-          </Text>
-          <PressScale
-            accessibilityRole="link"
-            accessibilityLabel={`Read more: ${card.title}`}
-            hitSlop={10}
-            scaleTo={0.9}
-            dimTo={0.7}
-            onPress={() => {
-              haptic.tap();
-              void WebBrowser.openBrowserAsync(card.url);
-            }}
-          >
-            <Text style={styles.readMore}>Read more ↗</Text>
-          </PressScale>
+          {meta ? (
+            <Text style={styles.meta} numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
+          <StoryActionBar story={card} />
         </View>
       </Animated.View>
     </View>
@@ -127,8 +121,7 @@ const useStyles = makeStyles((t) => {
       color: t.colors.text,
       marginTop: space.md,
     },
-    footer: { flexDirection: 'row', alignItems: 'center', marginTop: space.lg, gap: space.md },
-    meta: { flex: 1, color: t.colors.textMuted, fontSize: 13 },
-    readMore: { color: t.colors.indigo, fontSize: 14, fontWeight: '600' },
+    footer: { marginTop: space.lg, gap: space.sm },
+    meta: { color: t.colors.textMuted, fontSize: 13 },
   } as const;
 });

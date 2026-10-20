@@ -10,12 +10,20 @@ import { makeStyles } from '../lib/useTheme';
 
 export type ToastKind = 'info' | 'warning';
 
+/** Optional inline action, e.g. Undo. */
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
 interface ToastState {
-  toast: { id: number; message: string; kind: ToastKind } | null;
+  toast: { id: number; message: string; kind: ToastKind; action?: ToastAction } | null;
   hide: () => void;
 }
 
 const HIDE_AFTER_MS = 2500;
+// Give people time to reach an action like Undo.
+const HIDE_WITH_ACTION_MS = 4500;
 let nextId = 1;
 
 const useToast = create<ToastState>((set) => ({
@@ -23,10 +31,10 @@ const useToast = create<ToastState>((set) => ({
   hide: () => set({ toast: null }),
 }));
 
-export function showToast(message: string, kind: ToastKind = 'info') {
+export function showToast(message: string, kind: ToastKind = 'info', action?: ToastAction) {
   if (kind === 'warning') haptic.warning();
   AccessibilityInfo.announceForAccessibility(message);
-  useToast.setState({ toast: { id: nextId++, message, kind } });
+  useToast.setState({ toast: { id: nextId++, message, kind, action } });
 }
 
 export function ToastHost() {
@@ -37,7 +45,7 @@ export function ToastHost() {
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(hide, HIDE_AFTER_MS);
+    const t = setTimeout(hide, toast.action ? HIDE_WITH_ACTION_MS : HIDE_AFTER_MS);
     return () => clearTimeout(t);
   }, [toast, hide]);
 
@@ -55,6 +63,21 @@ export function ToastHost() {
               <Text style={styles.dotText}>{toast.kind === 'warning' ? '!' : 'i'}</Text>
             </View>
             <Text style={styles.text}>{toast.message}</Text>
+            {toast.action ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={toast.action.label}
+                hitSlop={10}
+                onPress={() => {
+                  const run = toast.action?.onPress;
+                  hide();
+                  haptic.tap();
+                  run?.();
+                }}
+              >
+                <Text style={styles.action}>{toast.action.label}</Text>
+              </Pressable>
+            ) : null}
           </Pressable>
         </Animated.View>
       ) : null}
@@ -85,4 +108,5 @@ const useStyles = makeStyles((t) => ({
   dotWarning: { backgroundColor: t.colors.warning },
   dotText: { color: t.colors.onPrimary, fontWeight: '900', fontSize: 14 },
   text: { flex: 1, fontSize: 15, color: t.colors.navy, fontWeight: '600', lineHeight: 20 },
+  action: { fontSize: 15, color: t.colors.indigo, fontWeight: '800' },
 }));

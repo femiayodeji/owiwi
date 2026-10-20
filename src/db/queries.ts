@@ -2,6 +2,9 @@ import type { Db } from './client';
 import type { Article } from '../news/types';
 import type { CardDraft, ProviderConfig, ProviderKind, Slot } from '../llm/types';
 import { newId } from '../lib/ids';
+import { toBookmark, type Bookmark, type BookmarkSource } from '../lib/bookmarks';
+
+export type { Bookmark } from '../lib/bookmarks';
 
 // ---------- keywords ----------
 
@@ -365,4 +368,75 @@ export async function recordStreakDay(db: Db, date: string, slot: Slot): Promise
 
 export async function isDayCompleted(db: Db, date: string): Promise<boolean> {
   return (await db.getFirstAsync<{ date: string }>('SELECT date FROM streak_days WHERE date = ?', date)) != null;
+}
+
+// ---------- bookmarks ----------
+// Self-contained copies of card content (see src/lib/bookmarks.ts). Never wiped.
+
+interface BookmarkRow {
+  id: string;
+  url: string;
+  title: string;
+  summary: string;
+  topic: string | null;
+  source: string | null;
+  published_at: string | null;
+  created_at: number;
+}
+
+const toBookmarkModel = (r: BookmarkRow): Bookmark => ({
+  id: r.id,
+  url: r.url,
+  title: r.title,
+  summary: r.summary,
+  topic: r.topic,
+  source: r.source,
+  publishedAt: r.published_at,
+  createdAt: r.created_at,
+});
+
+/** Newest first. */
+export async function listBookmarks(db: Db): Promise<Bookmark[]> {
+  const rows = await db.getAllAsync<BookmarkRow>('SELECT * FROM bookmarks ORDER BY created_at DESC, title');
+  return rows.map(toBookmarkModel);
+}
+
+export async function listBookmarkedUrls(db: Db): Promise<string[]> {
+  const rows = await db.getAllAsync<{ url: string }>('SELECT url FROM bookmarks');
+  return rows.map((r) => r.url);
+}
+
+export async function isBookmarked(db: Db, url: string): Promise<boolean> {
+  return (await db.getFirstAsync<{ id: string }>('SELECT id FROM bookmarks WHERE url = ?', url)) != null;
+}
+
+/**
+ * Saves a bookmark row as given (id and created_at included, so an undo restores
+ * the original). Idempotent per url. Returns true if a row was inserted.
+ */
+export async function saveBookmark(db: Db, b: Bookmark): Promise<boolean> {
+  const res = await db.runAsync(
+    `INSERT OR IGNORE INTO bookmarks (id, url, title, summary, topic, source, published_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    b.id,
+    b.url,
+    b.title,
+    b.summary,
+    b.topic,
+    b.source,
+    b.publishedAt,
+    b.createdAt,
+  );
+  return res.changes > 0;
+}
+
+/** Bookmarks a card by copying its content. Idempotent per url. */
+export async function addBookmark(db: Db, card: BookmarkSource): Promise<Bookmark> {
+  const b = toBookmark(card, newId(), Date.now());
+  await saveBookmark(db, b);
+  return b;
+}
+
+export async function removeBookmark(db: Db, url: string): Promise<void> {
+  await db.runAsync('DELETE FROM bookmarks WHERE url = ?', url);
 }
