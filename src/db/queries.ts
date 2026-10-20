@@ -2,6 +2,7 @@ import type { Db } from './client';
 import type { Article } from '../news/types';
 import type { CardDraft, ProviderConfig, ProviderKind, Slot } from '../llm/types';
 import { newId } from '../lib/ids';
+import { isCleared, resolveShownTitles, serializeShownTitles } from '../digest/cleared';
 import { toBookmark, type Bookmark, type BookmarkSource } from '../lib/bookmarks';
 
 export type { Bookmark } from '../lib/bookmarks';
@@ -179,6 +180,10 @@ export interface Digest {
   providerId: string | null;
   model: string | null;
   createdAt: number;
+  /** Set once the reader finished this digest and its cards were deleted. */
+  clearedAt: number | null;
+  /** JSON array of the cleared cards' titles (see src/digest/cleared.ts). */
+  shownTitles: string | null;
 }
 
 interface DigestRow {
@@ -189,6 +194,8 @@ interface DigestRow {
   provider_id: string | null;
   model: string | null;
   created_at: number;
+  cleared_at: number | null;
+  shown_titles: string | null;
 }
 
 const toDigest = (r: DigestRow): Digest => ({
@@ -199,6 +206,8 @@ const toDigest = (r: DigestRow): Digest => ({
   providerId: r.provider_id,
   model: r.model,
   createdAt: r.created_at,
+  clearedAt: r.cleared_at ?? null,
+  shownTitles: r.shown_titles ?? null,
 });
 
 export interface Card {
@@ -247,14 +256,38 @@ export async function getCards(db: Db, digestId: string): Promise<Card[]> {
   return rows.map(toCard);
 }
 
+/** Titles of the stories in (date, slot)'s ready digest, including one already read and cleared. */
 export async function getCardTitles(db: Db, date: string, slot: Slot): Promise<string[]> {
-  const rows = await db.getAllAsync<{ title: string }>(
-    `SELECT c.title FROM cards c JOIN digests d ON d.id = c.digest_id
-     WHERE d.date = ? AND d.slot = ? AND d.status = 'ready' ORDER BY c.position`,
-    date,
-    slot,
-  );
-  return rows.map((r) => r.title);
+  const digest = await getDigest(db, date, slot);
+  if (!digest || digest.status !== 'ready') return [];
+  const cardTitles = isCleared(digest) ? [] : (await getCards(db, digest.id)).map((c) => c.title);
+  return resolveShownTitles(digest, cardTitles);
+}
+
+/**
+ * Marks a finished digest as read: saves its card titles on the row, then
+ * deletes its cards and articles, in one transaction. The row stays ready so
+ * the slot is not generated again. No-op if already cleared or not ready.
+ */
+export async function clearDigest(db: Db, digestId: string): Promise<boolean> {
+  let cleared = false;
+  await db.withTransactionAsync(async () => {
+    const rows = await db.getAllAsync<{ title: string }>(
+      'SELECT title FROM cards WHERE digest_id = ? ORDER BY position',
+      digestId,
+    );
+    const res = await db.runAsync(
+      "UPDATE digests SET cleared_at = ?, shown_titles = ? WHERE id = ? AND status = 'ready' AND cleared_at IS NULL",
+      Date.now(),
+      serializeShownTitles(rows.map((r) => r.title)),
+      digestId,
+    );
+    if (res.changes === 0) return;
+    await db.runAsync('DELETE FROM cards WHERE digest_id = ?', digestId);
+    await db.runAsync('DELETE FROM articles WHERE digest_id = ?', digestId);
+    cleared = true;
+  });
+  return cleared;
 }
 
 /**
@@ -340,7 +373,7 @@ export async function completeDigest(
       );
     }
     await db.runAsync(
-      "UPDATE digests SET status = 'ready', provider_id = ?, model = ? WHERE id = ?",
+      "UPDATE digests SET status = 'ready', provider_id = ?, model = ?, cleared_at = NULL, shown_titles = NULL WHERE id = ?",
       provider.id,
       provider.model,
       digestId,

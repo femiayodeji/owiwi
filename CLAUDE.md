@@ -32,6 +32,7 @@ The point is the feed. "Read more" exists but is secondary.
 4. If a `ready` digest exists for `(today, activeSlot)`, show it. No network calls.
 5. Otherwise: fetch RSS per enabled keyword, dedupe, call the active LLM, validate, store articles and cards, mark `ready`, show cards.
 6. User swipes vertically through cards. Reaching the last card completes the day's streak.
+7. Then the read stories are cleared (`clearDigest`): cards and articles deleted, titles saved in `digests.shown_titles`, `cleared_at` set. The row stays `ready`, so no auto-generation; the slot shows "caught up" next time, with Regenerate (resets `cleared_at`).
 
 ## Slots
 
@@ -46,6 +47,7 @@ The point is the feed. "Read more" exists but is secondary.
 - Run the wipe on app launch, on every `AppState` change to `active`, and before any generation. This also handles midnight rollover while the app stays open.
 - `DELETE FROM digests WHERE date < :today` with `ON DELETE CASCADE` on cards and articles.
 - **Never wipe** keywords, providers, settings, `streak_days` or `bookmarks`.
+- Separately, a finished digest is cleared the same day (see Core flow step 7). Evening `already_shown` reads `shown_titles` once the morning is cleared.
 
 ## SQLite schema
 
@@ -77,6 +79,8 @@ CREATE TABLE digests (
   provider_id TEXT,
   model TEXT,
   created_at INTEGER NOT NULL,
+  cleared_at INTEGER,           -- migration 3: digest finished, cards deleted
+  shown_titles TEXT,            -- migration 3: JSON array of the cleared cards' titles
   UNIQUE (date, slot)
 );
 

@@ -19,9 +19,9 @@ All persistent data is on the device:
 BEGIN; <migration sql>; PRAGMA user_version = <n>; COMMIT;
 ```
 
-so each migration and its version bump are applied atomically. The current schema version is 2. Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
+so each migration and its version bump are applied atomically. The current schema version is 3 (2 adds `bookmarks`, 3 adds `digests.cleared_at` and `digests.shown_titles`). Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
 
-## Schema (version 2)
+## Schema (version 3)
 
 ```sql
 CREATE TABLE keywords (
@@ -50,6 +50,8 @@ CREATE TABLE digests (
   provider_id TEXT,
   model TEXT,
   created_at INTEGER NOT NULL,  -- also reset when a (re)generation starts
+  cleared_at INTEGER,           -- migration 3: set when the reader finished it and its cards were deleted
+  shown_titles TEXT,            -- migration 3: JSON array of the cleared cards' titles
   UNIQUE (date, slot)
 );
 
@@ -111,7 +113,9 @@ IDs are UUIDs from `expo-crypto` (`newId()` in `src/lib/ids.ts`). Timestamps (`c
 | At most 8 enabled keywords | `addKeyword` (new keyword starts disabled at the cap), `setKeywordEnabled` (returns `false`) in `src/db/queries.ts`; `MAX_ENABLED_KEYWORDS` |
 | Exactly one active provider (when any exist) | `saveProvider` (first provider becomes active), `setActiveProvider`, `deleteProvider` (promotes another) |
 | One digest per `(date, slot)` | `UNIQUE (date, slot)`; `beginDigest` reuses the existing row |
-| Articles and cards written atomically with `status = 'ready'` | `completeDigest` (single transaction) |
+| Articles and cards written atomically with `status = 'ready'` | `completeDigest` (single transaction; also resets `cleared_at` and `shown_titles`) |
+| Finished digest cleared atomically: titles saved to `shown_titles`, `cleared_at` set, cards and articles deleted; row stays `ready` | `clearDigest`, called by `useFeed.completeDay()` after the streak is recorded |
+| Evening `already_shown` survives clearing | `getCardTitles` reads live card titles, or `shown_titles` (zod-validated by `parseShownTitles` in `src/digest/cleared.ts`) once cleared |
 | Streak day recorded once per date | `recordStreakDay` uses `INSERT OR IGNORE` |
 | One bookmark per story | `url UNIQUE`; `saveBookmark` uses `INSERT OR IGNORE` |
 | Keyword reorder is atomic | `reorderKeywords` (transaction) |
