@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, loadSettings, type Settings } from '../db/settings';
 import { generateDigest, isGenerating, type GenerationStep } from '../digest/generate';
 import { wipeStale } from '../digest/retention';
 import { activeSlot as computeActiveSlot } from '../digest/slot';
+import { coalesce } from '../lib/async';
 import { localDate } from '../lib/dates';
 import { friendlyMessage } from '../lib/errors';
 import type { Slot } from '../llm/types';
@@ -189,3 +190,8 @@ export const useFeed = create<FeedStore>((set, get) => {
     },
   };
 });
+
+// Boot, AppState 'active' (a cold start from a notification fires several) and
+// settings screens can all call refresh() at once. Run one pass at a time, plus
+// one trailing pass so every caller sees state at least as fresh as its call.
+useFeed.setState({ refresh: coalesce(useFeed.getState().refresh) });
