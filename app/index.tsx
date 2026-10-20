@@ -149,7 +149,7 @@ export default function Feed() {
       <ConfirmDialog
         visible={confirmOpen}
         title="Regenerate this digest?"
-        message={`Owiwi will fetch fresh headlines and rewrite your ${viewSlot} digest. This uses your API tokens.`}
+        message={`Owiwi will look for stories you haven't seen yet and rewrite your ${viewSlot} digest. This uses your API tokens, but nothing if there's nothing new.`}
         confirmLabel="Regenerate"
         emotion="thinking"
         onConfirm={() => {

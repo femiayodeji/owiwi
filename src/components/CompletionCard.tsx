@@ -8,6 +8,7 @@ import { space } from '../lib/theme';
 import { makeStyles } from '../lib/useTheme';
 import { Confetti } from './Confetti';
 import { Owiwi } from './Owiwi';
+import { PressScale } from './PressScale';
 import { StreakFlame } from './StreakFlame';
 
 interface Props {
@@ -20,11 +21,13 @@ interface Props {
    * Omitted means "celebrate on mount".
    */
   active?: boolean;
+  /** Quiet "Check for fresh stories" link (regenerate, confirmed by the caller). */
+  onRegenerate?: () => void;
 }
 
 const COUNT_UP_DELAY_MS = 650;
 
-export function CompletionCard({ height, slot, streak, active = true }: Props) {
+export function CompletionCard({ height, slot, streak, active = true, onRegenerate }: Props) {
   const styles = useStyles();
   const reduced = useReducedMotion();
   const [burst, setBurst] = useState(0);
@@ -69,6 +72,20 @@ export function CompletionCard({ height, slot, streak, active = true }: Props) {
           <Animated.Text entering={enter(750)} style={styles.next}>
             {slot === 'morning' ? 'See you this evening.' : 'See you tomorrow.'}
           </Animated.Text>
+          {onRegenerate ? (
+            <Animated.View entering={enter(1100)}>
+              <PressScale
+                onPress={onRegenerate}
+                accessibilityRole="button"
+                accessibilityLabel="Check for fresh stories"
+                hitSlop={{ left: 8, right: 8 }}
+                scaleTo={0.95}
+                style={styles.fresh}
+              >
+                <Animated.Text style={styles.freshText}>Check for fresh stories</Animated.Text>
+              </PressScale>
+            </Animated.View>
+          ) : null}
           <Animated.Text entering={enter(1600)} style={styles.hint}>
             Tap Owiwi to celebrate again
           </Animated.Text>
@@ -84,5 +101,7 @@ const useStyles = makeStyles((t) => ({
   flame: { marginTop: space.lg },
   streak: { marginTop: space.sm, fontSize: 22, fontWeight: '800', color: t.colors.navy },
   next: { marginTop: space.sm, fontSize: 16, color: t.colors.textMuted },
-  hint: { marginTop: space.xl, fontSize: 13, color: t.colors.textFaint },
+  fresh: { marginTop: space.sm, minHeight: 44, justifyContent: 'center' },
+  freshText: { fontSize: 14, fontWeight: '600', color: t.colors.indigo },
+  hint: { marginTop: space.lg, fontSize: 13, color: t.colors.textFaint },
 }));

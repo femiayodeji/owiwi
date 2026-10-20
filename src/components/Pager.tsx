@@ -78,7 +78,7 @@ export function Pager({ cards, slot, streak, onReachedEnd, initialIndex = 0, onI
             item.kind === 'card' ? (
               <StoryCard card={item.card} height={height} index={index} total={cards.length} active={index === activeIndex} />
             ) : (
-              <CompletionCard height={height} slot={slot} streak={streak} active={index === activeIndex} />
+              <CompletionCard height={height} slot={slot} streak={streak} active={index === activeIndex} onRegenerate={onPullToRegenerate} />
             )
           }
           pagingEnabled
