@@ -9,6 +9,7 @@ import { withTimeout } from '../src/lib/async';
 import { configureNotifications, topUpReminders, useNotificationDeepLink } from '../src/notifications';
 import { useFeed } from '../src/store/feed';
 import { Button, useUi } from '../src/components/ui';
+import { ShareCardHost } from '../src/components/ShareCard';
 import { ToastHost } from '../src/components/Toast';
 import { Owiwi } from '../src/components/Owiwi';
 
@@ -154,6 +155,7 @@ export default function RootLayout() {
         <Stack.Screen name="bookmarks" options={{ title: 'Bookmarks' }} />
       </Stack>
       <ToastHost />
+      <ShareCardHost />
     </SafeAreaProvider>
   );
 }

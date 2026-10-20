@@ -23,3 +23,11 @@ export function formatShareMessage(story: ShareableStory): ShareContent {
   const parts = [title, summary, SHARE_TAG].filter((p) => p.length > 0);
   return { title, message: parts.join('\n\n') };
 }
+
+/** Title size on the share image: long titles step down so four lines always fit. */
+export function shareTitleSize(title: string): number {
+  const n = clean(title).length;
+  if (n > 75) return 19;
+  if (n > 50) return 21;
+  return 24;
+}

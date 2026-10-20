@@ -1,7 +1,15 @@
 import { MIGRATIONS } from '../src/db/migrations';
 import { sortBookmarks, toBookmark, withUrl, type Bookmark } from '../src/lib/bookmarks';
-import { formatShareMessage, SHARE_TAG } from '../src/lib/share';
+import { formatShareMessage, SHARE_TAG, shareTitleSize } from '../src/lib/share';
 import { WIPE_SQL } from '../src/digest/retention';
+
+describe('shareTitleSize', () => {
+  it('steps the share-image title down as it gets longer', () => {
+    expect(shareTitleSize('Rates held')).toBe(24);
+    expect(shareTitleSize('x'.repeat(60))).toBe(21);
+    expect(shareTitleSize('x'.repeat(90))).toBe(19);
+  });
+});
 
 describe('formatShareMessage', () => {
   it('joins title, summary and the Owiwi tag as plain text, without the link', () => {
