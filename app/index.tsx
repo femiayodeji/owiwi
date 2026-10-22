@@ -35,7 +35,7 @@ import { useFeed, type SlotState } from '../src/store/feed';
 const STEPS: GenerationStep[] = ['fetching', 'writing', 'saving'];
 
 export default function Feed() {
-  const { settings, activeSlot, viewSlot, slots, streak, seen, setViewSlot, generate, completeDay, markSeen } = useFeed();
+  const { settings, activeSlot, viewSlot, slots, streak, seen, setViewSlot, generate, completeDay, markSeen, setLastIndex } = useFeed();
   const [index, setIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -130,13 +130,14 @@ export default function Feed() {
           streakDoneToday={streak.doneToday}
           morningTime={settings.morning_time}
           eveningTime={settings.evening_time}
-          initialIndex={resumeIndex(state.cards, seen)}
+          initialIndex={resumeIndex(state.cards, seen, state.lastIndex)}
           readAgainSlot={slots[other].status === 'ready' && slots[other].cards.length > 0 ? other : null}
           onReadAgain={() => switchSlot(other)}
           onGenerate={() => void generate(viewSlot)}
           onRegenerate={confirmRegenerate}
           onIndex={(i) => {
             setIndex(i);
+            setLastIndex(viewSlot, i);
             const card = state.cards[i];
             if (card) markSeen(card);
           }}

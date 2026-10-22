@@ -54,6 +54,16 @@ describe('resumeIndex', () => {
   it('opens on the completion page when every card was seen', () => {
     expect(resumeIndex(cards, new Set(cards.map((c) => normalizeUrl(c.url))))).toBe(2);
   });
+  it('reopens on the page the reader was last on, even though it was seen', () => {
+    const allSeen = new Set(cards.map((c) => normalizeUrl(c.url)));
+    expect(resumeIndex(cards, allSeen, 0)).toBe(0);
+    expect(resumeIndex(cards, new Set([normalizeUrl(cards[0].url)]), 0)).toBe(0);
+    expect(resumeIndex(cards, allSeen, 2)).toBe(2);
+  });
+  it('ignores a last page outside the digest', () => {
+    expect(resumeIndex(cards, new Set(), 5)).toBe(0);
+    expect(resumeIndex(cards, new Set(), -1)).toBe(0);
+  });
 });
 
 describe('wipeStale', () => {

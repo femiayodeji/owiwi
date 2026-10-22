@@ -181,6 +181,8 @@ export interface Digest {
   providerId: string | null;
   model: string | null;
   createdAt: number;
+  /** Pager page the reader was last on, or null if not opened since it was written. */
+  lastIndex: number | null;
 }
 
 interface DigestRow {
@@ -191,6 +193,7 @@ interface DigestRow {
   provider_id: string | null;
   model: string | null;
   created_at: number;
+  last_index: number | null;
 }
 
 const toDigest = (r: DigestRow): Digest => ({
@@ -201,6 +204,7 @@ const toDigest = (r: DigestRow): Digest => ({
   providerId: r.provider_id,
   model: r.model,
   createdAt: r.created_at,
+  lastIndex: r.last_index ?? null,
 });
 
 export interface Card {
@@ -286,6 +290,10 @@ export async function setDigestStatus(db: Db, id: string, status: DigestStatus):
   await db.runAsync('UPDATE digests SET status = ? WHERE id = ?', status, id);
 }
 
+export async function setDigestLastIndex(db: Db, id: string, index: number): Promise<void> {
+  await db.runAsync('UPDATE digests SET last_index = ? WHERE id = ?', index, id);
+}
+
 export async function deleteDigest(db: Db, id: string): Promise<void> {
   await db.runAsync('DELETE FROM digests WHERE id = ?', id);
 }
@@ -332,7 +340,7 @@ export async function completeDigest(
       );
     }
     await db.runAsync(
-      "UPDATE digests SET status = 'ready', provider_id = ?, model = ? WHERE id = ?",
+      "UPDATE digests SET status = 'ready', provider_id = ?, model = ?, last_index = NULL WHERE id = ?",
       provider.id,
       provider.model,
       digestId,

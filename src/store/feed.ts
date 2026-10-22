@@ -7,6 +7,7 @@ import {
   listStreakDates,
   markStorySeen,
   recordStreakDay,
+  setDigestLastIndex,
   type Card,
 } from '../db/queries';
 import { DEFAULT_SETTINGS, loadSettings, type Settings } from '../db/settings';
@@ -26,6 +27,8 @@ export type SlotStatus = 'none' | 'loading' | 'generating' | 'ready' | 'empty' |
 export interface SlotState {
   status: SlotStatus;
   cards: Card[];
+  /** Pager page the reader was last on (see resumeIndex), null if not opened yet. */
+  lastIndex: number | null;
   step: GenerationStep | null;
   error: string | null;
   failedKeywords: string[];
@@ -60,6 +63,8 @@ interface FeedStore {
   completeDay(slot: Slot): Promise<void>;
   /** Remembers a card the reader was shown. Fire-and-forget. */
   markSeen(card: Card): void;
+  /** Remembers the pager page the reader is on, so reopening resumes there. Fire-and-forget. */
+  setLastIndex(slot: Slot, index: number): void;
 }
 
 const hasCards = (s: SlotState): boolean => s.status === 'ready' && s.cards.length > 0;
@@ -67,6 +72,7 @@ const hasCards = (s: SlotState): boolean => s.status === 'ready' && s.cards.leng
 const emptySlot = (status: SlotStatus = 'loading'): SlotState => ({
   status,
   cards: [],
+  lastIndex: null,
   step: null,
   error: null,
   failedKeywords: [],
@@ -84,7 +90,9 @@ export const useFeed = create<FeedStore>((set, get) => {
     const db = await getDb();
     const digest = await getDigest(db, date, slot);
     if (!digest) return emptySlot('none');
-    if (digest.status === 'ready') return { ...emptySlot('ready'), cards: await getCards(db, digest.id) };
+    if (digest.status === 'ready') {
+      return { ...emptySlot('ready'), cards: await getCards(db, digest.id), lastIndex: digest.lastIndex };
+    }
     if (digest.status === 'failed') return { ...emptySlot('failed'), error: 'Your last digest attempt failed.' };
     // 'generating' without a live run here is an orphan from a killed app: treat as not built yet.
     return emptySlot(isGenerating(date, slot) ? 'generating' : 'none');
@@ -220,6 +228,16 @@ export const useFeed = create<FeedStore>((set, get) => {
       set({ seen: new Set(seen).add(url) });
       void getDb()
         .then((db) => markStorySeen(db, card))
+        .catch(() => undefined);
+    },
+
+    setLastIndex(slot, index) {
+      const state = get().slots[slot];
+      const digestId = state.cards[0]?.digestId;
+      if (!digestId || state.lastIndex === index) return;
+      patchSlot(slot, { lastIndex: index });
+      void getDb()
+        .then((db) => setDigestLastIndex(db, digestId, index))
         .catch(() => undefined);
     },
   };

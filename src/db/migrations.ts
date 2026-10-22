@@ -103,6 +103,11 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX seen_stories_seen_at ON seen_stories(seen_at);
   `,
+  // reader position: the pager page the reader was last on (cards.length is the
+  // completion page). NULL until the digest is opened; reset on regenerate.
+  `
+  ALTER TABLE digests ADD COLUMN last_index INTEGER;
+  `,
 ];
 
 export async function runMigrations(db: MigrationDb, migrations: readonly string[] = MIGRATIONS): Promise<number> {

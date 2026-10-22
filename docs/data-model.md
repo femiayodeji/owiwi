@@ -19,7 +19,7 @@ All persistent data is on the device:
 BEGIN; <migration sql>; PRAGMA user_version = <n>; COMMIT;
 ```
 
-so each migration and its version bump are applied atomically. The current schema version is 4 (2 adds `bookmarks`, 3 adds `digests.cleared_at` and `digests.shown_titles`, now unused, 4 adds `seen_stories`). Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
+so each migration and its version bump are applied atomically. The current schema version is 5 (2 adds `bookmarks`, 3 adds `digests.cleared_at` and `digests.shown_titles`, now unused, 4 adds `seen_stories`, 5 adds `digests.last_index`). Never edit a shipped migration; add a new entry instead (see [development.md](development.md#adding-a-migration)).
 
 ## Schema (version 4)
 
@@ -52,6 +52,7 @@ CREATE TABLE digests (
   created_at INTEGER NOT NULL,  -- also reset when a (re)generation starts
   cleared_at INTEGER,           -- migration 3: unused legacy column (read-news clearing was removed)
   shown_titles TEXT,            -- migration 3: unused legacy column
+  last_index INTEGER,           -- migration 5: pager page the reader was last on; NULL until opened, reset on regenerate
   UNIQUE (date, slot)
 );
 
@@ -112,7 +113,7 @@ CREATE TABLE seen_stories (     -- migration 4: cards the reader was shown, kept
 CREATE INDEX seen_stories_seen_at ON seen_stories(seen_at);
 ```
 
-A card is seen when its page becomes visible in the feed (`useFeed.markSeen`, fire-and-forget). `seen_stories` has no foreign key, so it outlives the daily wipe. Queries: `listSeenStories` (most recent first), `markStorySeen` in `src/db/queries.ts`. Pure helpers in `src/digest/seen.ts`: `dropSeen` (hard filter before the LLM) and `resumeIndex` (where the pager opens).
+A card is seen when its page becomes visible in the feed (`useFeed.markSeen`, fire-and-forget). `seen_stories` has no foreign key, so it outlives the daily wipe. Queries: `listSeenStories` (most recent first), `markStorySeen` in `src/db/queries.ts`. Pure helpers in `src/digest/seen.ts`: `dropSeen` (hard filter before the LLM) and `resumeIndex` (where the pager opens: `digests.last_index`, saved by `useFeed.setLastIndex` on every page change, else the first unseen card).
 
 `bookmarks` deliberately has no foreign key to `cards` or `digests`: it copies the card's content so a saved story survives the daily wipe (which cascades cards) and any removal of read cards. Queries: `listBookmarks`, `listBookmarkedUrls`, `isBookmarked`, `addBookmark`, `saveBookmark` (used by undo, keeps the original id and `created_at`), `removeBookmark` in `src/db/queries.ts`. The `useBookmarks` zustand store (`src/store/bookmarks.ts`) keeps the set of bookmarked urls in memory for the cards.
 

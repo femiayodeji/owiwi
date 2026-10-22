@@ -26,10 +26,16 @@ export function seenMatcher(seen: readonly SeenStory[]): (a: Article) => boolean
 }
 
 /**
- * Page to open a digest on: the first card not seen yet, or the completion
- * page (cards.length) when every card was seen, so the reader can swipe back.
+ * Page to open a digest on: the page the reader was last on (cards.length is
+ * the completion page). Without one, the first card not seen yet, or the
+ * completion page when every card was seen, so the reader can swipe back.
  */
-export function resumeIndex(cards: readonly { url: string }[], seenUrls: ReadonlySet<string>): number {
+export function resumeIndex(
+  cards: readonly { url: string }[],
+  seenUrls: ReadonlySet<string>,
+  lastIndex: number | null = null,
+): number {
+  if (lastIndex != null && Number.isInteger(lastIndex) && lastIndex >= 0 && lastIndex <= cards.length) return lastIndex;
   const i = cards.findIndex((c) => !seenUrls.has(normalizeUrl(c.url)));
   return i === -1 ? cards.length : i;
 }

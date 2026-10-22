@@ -32,7 +32,7 @@ The point is the feed. "Read more" exists but is secondary.
 3. Wipe stale data (see Retention).
 4. If a `ready` digest exists for `(today, activeSlot)`, show it. No network calls.
 5. Otherwise: fetch RSS per enabled keyword, dedupe, call the active LLM, validate, store articles and cards, mark `ready`, show cards.
-6. User swipes vertically through cards. Each card shown is remembered in `seen_stories`. Reaching the last card completes the day's streak. Cards are never deleted early: the reader can always swipe back. Reopening a fully seen digest lands on the completion card.
+6. User swipes vertically through cards. Each card shown is remembered in `seen_stories`. Reaching the last card completes the day's streak. Cards are never deleted early: the reader can always swipe back. Reopening a digest lands on the page the reader was last on (`digests.last_index`; the completion card if they finished there), or the first unseen card if it was never opened.
 
 ## Slots
 
@@ -81,6 +81,7 @@ CREATE TABLE digests (
   created_at INTEGER NOT NULL,
   cleared_at INTEGER,           -- migration 3: unused legacy column (clearing was removed)
   shown_titles TEXT,            -- migration 3: unused legacy column
+  last_index INTEGER,           -- migration 5: pager page the reader was last on; NULL until opened, reset on regenerate
   UNIQUE (date, slot)
 );
 
