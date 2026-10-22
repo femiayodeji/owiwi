@@ -53,6 +53,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ...(hasNotificationLargeIcon ? { largeIcon: NOTIFICATION_LARGE_ICON } : {}),
       },
     ],
+    // Android: show a reminder that was due while the phone was off (boot receiver).
+    './plugins/with-missed-reminders',
   ],
   experiments: {
     typedRoutes: false,

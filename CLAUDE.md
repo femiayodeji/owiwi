@@ -244,6 +244,7 @@ Rules:
   - iOS: notifications use the app icon automatically; there is no separate small icon.
 - Tapping a notification deep-links to the feed for the active slot.
 - Notifications are best-effort reminders. The app must never depend on a background fetch at that time.
+- Android drops scheduled reminders whose time passed while the phone was off. A boot receiver (`plugins/with-missed-reminders.js`) shows the latest one due today that never fired.
 
 ## Streaks
 
