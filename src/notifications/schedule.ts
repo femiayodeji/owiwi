@@ -5,7 +5,6 @@ import { isDayCompleted } from '../db/queries';
 import { loadSettings } from '../db/settings';
 import { coalesce, withTimeout } from '../lib/async';
 import { localDate } from '../lib/dates';
-import { pickCopy, type ReminderKind } from './copy';
 import { isTopUpDue, planReminders, REMINDER_PREFIX, reminderId } from './plan';
 
 // Android channel sound is fixed when the channel is created, so a sound change
@@ -162,19 +161,4 @@ export async function cancelTodayNudge(): Promise<void> {
   } catch (e) {
     warn('cancel nudge', e);
   }
-}
-
-/**
- * Fires one reminder a few seconds from now, using the real copy and channel,
- * so the icon and text can be checked on a device. Not part of the schedule.
- */
-export async function sendTestNotification(kind: ReminderKind = 'morning', delaySeconds = 3): Promise<boolean> {
-  if (!(await requestPermission())) return false;
-  const { title, body } = pickCopy(kind, localDate());
-  await Notifications.scheduleNotificationAsync({
-    identifier: `test.${Date.now()}`,
-    content: { title, body, sound: NOTIFICATION_SOUND, data: { url: '/' } },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: delaySeconds, channelId: CHANNEL_ID },
-  });
-  return true;
 }

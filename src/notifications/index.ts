@@ -9,7 +9,6 @@ export {
   syncReminders,
   topUpReminders,
   cancelTodayNudge,
-  sendTestNotification,
   CHANNEL_ID,
 } from './schedule';
 export type { PermissionState } from './schedule';

@@ -122,6 +122,4 @@ iOS has no separate notification icon; it uses the app icon.
 
 Native assets (icons, splash, notification icon and sound) only take effect after a new native build (`npx expo prebuild --clean`, then a dev-client or release build). On Android, a channel's sound is fixed when the channel is created, so changing the sound also needs a new channel id (`CHANNEL_ID` in `src/notifications/schedule.ts`).
 
-To test notifications: Settings → Schedule & reminders → Test. It sends a morning, evening or nudge reminder 3 seconds later, using the real copy, icon, sound and channel.
-
 `assets/owiwi/README.md` lists the files.

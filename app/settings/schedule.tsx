@@ -1,32 +1,17 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { Dropdown, type DropdownOption } from '../../src/components/Dropdown';
-import { Button, NumberStepper, Section, TimeStepper, ToggleRow, useUi } from '../../src/components/ui';
+import { ScrollView, Text } from 'react-native';
+import { NumberStepper, Section, TimeStepper, ToggleRow, useUi } from '../../src/components/ui';
 import { getDb } from '../../src/db/client';
 import { saveSettings, type Settings } from '../../src/db/settings';
 import { timeToMinutes } from '../../src/lib/dates';
-import { requestPermission, sendTestNotification, syncReminders, type ReminderKind } from '../../src/notifications';
-import { space } from '../../src/lib/theme';
+import { requestPermission, syncReminders } from '../../src/notifications';
 import { useFeed } from '../../src/store/feed';
-
-const REMINDER_OPTIONS: readonly DropdownOption<ReminderKind>[] = [
-  { value: 'morning', label: 'Morning reminder' },
-  { value: 'evening', label: 'Evening reminder' },
-  { value: 'nudge', label: 'Streak-saver nudge' },
-];
 
 export default function ScheduleScreen() {
   const settings = useFeed((s) => s.settings);
   const ui = useUi();
   const refresh = useFeed((s) => s.refresh);
   const [error, setError] = useState<string | null>(null);
-  const [testStatus, setTestStatus] = useState<string | null>(null);
-  const [testKind, setTestKind] = useState<ReminderKind>('morning');
-
-  const test = async (kind: ReminderKind) => {
-    const ok = await sendTestNotification(kind);
-    setTestStatus(ok ? 'Arriving in 3 seconds. Lock the phone or leave the app to see it in the shade.' : 'Notifications are off for Owiwi. Allow them in system settings.');
-  };
 
   const update = async (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
@@ -69,13 +54,6 @@ export default function ScheduleScreen() {
         {settings.nudge_enabled === '1' ? (
           <TimeStepper label="Nudge at" value={settings.nudge_time} onChange={(v) => void update({ nudge_time: v })} />
         ) : null}
-      </Section>
-      <Section title="Test">
-        <View style={{ padding: space.md, gap: space.sm }}>
-          <Dropdown label="Reminder type" value={testKind} options={REMINDER_OPTIONS} onChange={setTestKind} />
-          <Button title="Send test notification" variant="secondary" onPress={() => void test(testKind)} />
-          {testStatus ? <Text style={ui.muted}>{testStatus}</Text> : null}
-        </View>
       </Section>
       <Text style={ui.muted}>
         Reminders are local and best-effort. Owiwi builds your digest when you open the app, not in the background.
