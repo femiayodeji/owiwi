@@ -32,7 +32,7 @@ function rollUp(distance: number) {
   }).duration(320);
 }
 
-/** value: streak days. highlight: today is done (lit, flickering flame; dimmed otherwise). size: 'sm' top bar | 'lg' hero. */
+/** value: streak days. highlight: today is done (lit, flickering flame; grey otherwise). size: 'sm' top bar | 'lg' hero. */
 export function StreakFlame({ value, highlight = false, size = 'sm' }: { value: number; highlight?: boolean; size?: 'sm' | 'lg' }) {
   const styles = useStyles();
   const reduced = useReducedMotion();
@@ -75,7 +75,7 @@ export function StreakFlame({ value, highlight = false, size = 'sm' }: { value: 
 
   return (
     <View style={[styles.row, { gap: dims.gap }]} accessibilityRole="text" accessibilityLabel={`${value} day streak`}>
-      <Animated.View style={[{ transformOrigin: 'bottom', opacity: highlight ? 1 : 0.45 }, flameStyle]}>
+      <Animated.View style={[{ transformOrigin: 'bottom' }, highlight ? null : styles.unlit, flameStyle]}>
         <Text style={{ fontSize: dims.flame, lineHeight: dims.flame * 1.25 }}>🔥</Text>
       </Animated.View>
       <Animated.View style={[styles.numWrap, popStyle]}>
@@ -93,6 +93,8 @@ export function StreakFlame({ value, highlight = false, size = 'sm' }: { value: 
 
 const useStyles = makeStyles((t) => ({
   row: { flexDirection: 'row', alignItems: 'center' },
+  // grayscale needs Android 12+; iOS and older Android only get the dimming.
+  unlit: { opacity: 0.45, filter: [{ grayscale: 1 }] },
   numWrap: { overflow: 'hidden' },
   num: { fontWeight: '800', color: t.colors.navy, fontVariant: ['tabular-nums'] },
 }));
