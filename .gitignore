@@ -43,3 +43,6 @@ yarn-error.*
 /android-rebuild.sh
 /prebuild.log*
 .phone-watch.log
+
+# Windows download markers
+*:Zone.Identifier
