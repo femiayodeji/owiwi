@@ -126,6 +126,20 @@ New-NetFirewallRule -DisplayName "Metro 8081 (Expo dev)" -Direction Inbound -Pro
 - A release build embeds the JS bundle and never talks to Metro; reinstall the dev client to go back to fast refresh.
 - If a native build is interrupted, a half-written C++ object can break the next one (`ld.lld: ... unknown file type`): delete `node_modules/*/android/.cxx/<Variant>` and rebuild.
 
+## Website
+
+`website/` is the single-page download site: plain `index.html`, `styles.css`, `main.js`, `vercel.json` and `assets/` (web-optimized owl art, favicon, social image). There is no framework, no `package.json` and no build step.
+
+**Deploy on Vercel:** import the repo, set **Root Directory** to `website`, Framework Preset **Other**, and leave the build and output commands empty. Every push to `main` redeploys. `vercel.json` sets clean URLs, cache headers, security headers (a strict CSP that allows only Google Fonts as a third party) and `Content-Type: application/vnd.android.package-archive` for any `.apk` served from the site. To preview locally: `python3 -m http.server -d website 8000`.
+
+**Updating the APK:** the download button points to `https://github.com/femiayodeji/owiwi/releases/latest/download/owiwi.apk`, so publishing is just a GitHub release:
+
+1. Build the release APK (see Builds above) and sign it with the same key as the previous release, so it installs over the old app and keeps user data.
+2. Create a GitHub release (tag like `v1.0.1`) and attach the file named exactly `owiwi.apk`. `latest/download` always resolves to the newest non-prerelease release.
+3. Update the version and size text in `website/index.html` (the `release-note` paragraph in the hero and the "About 35 MB" in the install requirements).
+
+The URL is defined once, as `APK_URL` at the top of `website/main.js`; change it there to host the APK elsewhere. Without JavaScript the download buttons fall back to the install section. To regenerate the images from `docs/design/`, resize and export WebP + PNG with Pillow (the state owls are cut from `owiwi-states-3d.png` and the white background turned into transparency).
+
 ## Expo SDK 58 notes
 
 - Install or upgrade native packages with `npx expo install <pkg>` so versions match SDK 58. Avoid plain `npm install` for Expo or React Native packages.
