@@ -130,7 +130,7 @@ New-NetFirewallRule -DisplayName "Metro 8081 (Expo dev)" -Direction Inbound -Pro
 
 `website/` is the single-page download site: plain `index.html`, `styles.css`, `main.js`, `vercel.json` and `assets/` (web-optimized owl art, favicon, social image). There is no framework, no `package.json` and no build step.
 
-**Deploy on Vercel:** import the repo, set **Root Directory** to `website`, Framework Preset **Other**, and leave the build and output commands empty. Every push to `main` redeploys. `vercel.json` sets clean URLs, cache headers, security headers (a strict CSP that allows only Google Fonts as a third party) and `Content-Type: application/vnd.android.package-archive` for any `.apk` served from the site. To preview locally: `python3 -m http.server -d website 8000`.
+**Deploy on Vercel:** import the repo, set **Root Directory** to `website`, Framework Preset **Other**, and leave the build and output commands empty. Live at https://owiwi-website.vercel.app/. Every push to `main` redeploys. The canonical, `og:url` and `og:image` tags in `index.html` use that absolute URL; change them if the domain changes. `vercel.json` sets clean URLs, cache headers, security headers (a strict CSP that allows only Google Fonts as a third party) and `Content-Type: application/vnd.android.package-archive` for any `.apk` served from the site. To preview locally: `python3 -m http.server -d website 8000`.
 
 **Updating the APK:** the download button points to `https://github.com/femiayodeji/owiwi/releases/latest/download/owiwi.apk`, so publishing is just a GitHub release:
 
