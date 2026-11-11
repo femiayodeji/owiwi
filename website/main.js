@@ -20,9 +20,9 @@ for (const a of document.querySelectorAll('[data-apk]')) {
   const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   if (isAndroid) return;
   if (isIOS) {
-    note.textContent = 'Owiwi is Android-only for now. This download will not install on an iPhone or iPad.';
+    note.textContent = 'Android only for now. This won\'t install on iPhone or iPad.';
   } else {
-    note.textContent = 'On a computer? Open this page on your Android phone to download and install directly, or copy the APK to your phone.';
+    note.textContent = 'On a computer? Open this page on your Android phone.';
   }
   note.hidden = false;
 })();
