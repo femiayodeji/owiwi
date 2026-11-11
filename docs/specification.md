@@ -70,9 +70,9 @@ Limits: about 15 items per keyword and 60 articles in total per digest, shared f
 ## Streaks
 
 - A day counts when the reader reaches the last card of any ready digest that day. Recording is idempotent per date.
-- Current streak = consecutive completed days ending today, or ending yesterday if today is not done yet. If the last completed day is before yesterday, the streak is 0.
+- Current streak = consecutive completed days ending today, or ending yesterday if today is not done yet. One missed day between completed days is forgiven (a grace day: it keeps the streak but does not add to it), at most once every 7 days; while yesterday was missed the streak stays alive until today ends. Two missed days in a row reset it to 0.
 - Dates are device-local. A timezone change that makes a recorded date appear to be in the future is treated as today, so the streak is not broken.
-- Not in v1: streak freezes, leaderboards.
+- Not in v1: manual streak freezes, leaderboards.
 
 ## Notifications
 

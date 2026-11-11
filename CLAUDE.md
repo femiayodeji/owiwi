@@ -249,9 +249,9 @@ Rules:
 ## Streaks
 
 - A day counts when the user reaches the last card of any `ready` digest that day. Insert into `streak_days` (idempotent per date).
-- Current streak = consecutive dates ending today, or ending yesterday if today isn't done yet. If the last completed date is before yesterday, streak is 0.
+- Current streak = consecutive dates ending today, or ending yesterday if today isn't done yet. **Grace:** one missed day between completed days is bridged (not counted), at most once every 7 days (`GRACE_EVERY_DAYS`); a missed yesterday stays bridged while today can still be completed. Two missed days in a row reset the streak to 0.
 - Always use device-local dates. Handle timezone changes gracefully (don't break the streak because the timezone shifted).
-- Out of scope for v1: streak freezes, leaderboards.
+- Out of scope for v1: manual streak freezes, leaderboards.
 
 ## Mascot: Owiwi
 

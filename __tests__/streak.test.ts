@@ -14,10 +14,27 @@ describe('computeStreak', () => {
     expect(computeStreak(['2026-10-15', '2026-10-16'], today)).toEqual({ current: 2, doneToday: false, longest: 2 });
     expect(streakLost(['2026-10-16'], today)).toBe(false);
   });
-  it('breaks on a gap', () => {
-    expect(computeStreak(['2026-10-14', '2026-10-15'], today).current).toBe(0);
-    expect(streakLost(['2026-10-15'], today)).toBe(true);
-    expect(computeStreak(['2026-10-13', '2026-10-14', '2026-10-16', today], today).current).toBe(2);
+  it('breaks on two missed days in a row', () => {
+    expect(computeStreak(['2026-10-13', '2026-10-14'], today).current).toBe(0);
+    expect(streakLost(['2026-10-14'], today)).toBe(true);
+    expect(computeStreak(['2026-10-11', '2026-10-12', '2026-10-15', today], today).current).toBe(2);
+  });
+  it('forgives one missed day without counting it', () => {
+    // Missed 10-14, completed today.
+    expect(computeStreak(['2026-10-12', '2026-10-13', '2026-10-15', '2026-10-16', today], today).current).toBe(5);
+    // Missed yesterday: still alive while today can be completed.
+    expect(computeStreak(['2026-10-14', '2026-10-15'], today).current).toBe(2);
+    expect(streakLost(['2026-10-15'], today)).toBe(false);
+    // Missed yesterday and today ended: the next day breaks it.
+    expect(computeStreak(['2026-10-14', '2026-10-15'], '2026-10-18').current).toBe(0);
+  });
+  it('allows at most one grace per week', () => {
+    // Graces on 10-08 and 10-14 are only 6 days apart: the run restarts after 10-14.
+    const dates = ['2026-10-07', '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-15', '2026-10-16', today];
+    expect(computeStreak(dates, today)).toMatchObject({ current: 3, longest: 6 });
+    // 7 days apart: both forgiven.
+    const spaced = ['2026-10-07', '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-16', today];
+    expect(computeStreak(spaced, today).current).toBe(9);
   });
   it('crosses month and year boundaries', () => {
     expect(computeStreak(['2026-09-29', '2026-09-30', '2026-10-01'], '2026-10-01').current).toBe(3);
